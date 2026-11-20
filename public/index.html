@@ -20,9 +20,6 @@
         <p class="subtitle">Count supplies on schedule and get reminded when a count is due.</p>
       </div>
       <div class="header-actions">
-        <button class="tour-nav-btn" id="startTourGuideBtn" title="Start real-time interactive guide">
-          <span>✨ Staff Guide</span>
-        </button>
         <button class="nav-dark-btn" id="zeroStockReportBtn" title="View items with zero stock">
           <span>Zero Stock Report</span>
         </button>
@@ -281,97 +278,6 @@
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-primary" id="closeInstallBottomBtn">Done</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Interactive Step-by-Step Guide Wizard Modal -->
-  <div class="modal-overlay" id="interactiveGuideModal">
-    <div class="modal-card guide-wizard-card">
-      <div class="modal-header">
-        <div class="modal-header-left">
-          <h3>✨ Staff Interactive Guide</h3>
-        </div>
-        <button type="button" class="close-btn" id="closeGuideWizardBtn">&times;</button>
-      </div>
-
-      <!-- 3-Step Progress Indicator -->
-      <div class="wizard-progress-bar">
-        <div class="wizard-progress-track">
-          <div class="wizard-progress-fill" id="guideProgressFill" style="width: 33%;"></div>
-        </div>
-        <div class="wizard-step-node active" id="nodeStep1">
-          <div class="wizard-step-circle">1</div>
-          <span class="wizard-step-label">Alerts</span>
-        </div>
-        <div class="wizard-step-node" id="nodeStep2">
-          <div class="wizard-step-circle">2</div>
-          <span class="wizard-step-label">Phone App</span>
-        </div>
-        <div class="wizard-step-node" id="nodeStep3">
-          <div class="wizard-step-circle">3</div>
-          <span class="wizard-step-label">Stock Count</span>
-        </div>
-      </div>
-
-      <!-- STEP 1: ALERTS -->
-      <div class="guide-step-body" id="guideStep1View">
-        <h4 class="guide-step-title">🔔 1. സ്റ്റോക്ക് അലേർട്ടുകൾ ഓൺ ചെയ്യാം</h4>
-        <p class="guide-step-desc">
-          ഗസ്റ്റ് അമിനിറ്റീസ് 500-ൽ താഴെ വരുമ്പോഴും സാധനങ്ങൾ തീരാറാകുമ്പോഴും തത്സമയ നോട്ടിഫിക്കേഷൻ ലഭിക്കാൻ താഴെയുള്ള ബട്ടൺ അമർത്തുക:
-        </p>
-        <button type="button" class="guide-action-pulse-btn" id="guideActionAlertBtn">
-          <span>🔔 ഇവിടെ ക്ലിക്ക് ചെയ്ത് Alerts On ചെയ്യുക</span>
-        </button>
-        <div id="guideStep1Feedback" style="display:none;"></div>
-      </div>
-
-      <!-- STEP 2: ADD TO PHONE -->
-      <div class="guide-step-body" id="guideStep2View" style="display:none;">
-        <h4 class="guide-step-title">📱 2. ഫോൺ ഹോം സ്ക്രീനിലേക്ക് ചേർക്കാം</h4>
-        <p class="guide-step-desc">
-          ബ്രൗസറിൽ ലിങ്ക് അടിക്കാതെ, വാട്സാപ്പ് പോലെ ഒറ്റ ടാപ്പിൽ ആപ്പ് തുറക്കാൻ ഫോണിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്യുക:
-        </p>
-        <div id="guideStep2InstallWrapper">
-          <button type="button" class="guide-action-pulse-btn" id="guideActionInstallBtn">
-            <span>📲 ഫോണിൽ ആപ്പായി ഇൻസ്റ്റാൾ ചെയ്യുക (Install App)</span>
-          </button>
-        </div>
-        <div id="guideStep2ManualGuide" style="margin-top: 14px; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-          <!-- Auto injected per device -->
-        </div>
-      </div>
-
-      <!-- STEP 3: HOW TO COUNT -->
-      <div class="guide-step-body" id="guideStep3View" style="display:none;">
-        <h4 class="guide-step-title">🧹 3. സ്റ്റോക്ക് എണ്ണാൻ തുടങ്ങാം!</h4>
-        <p class="guide-step-desc">
-          താഴെ കാണുന്നത് പോലെ എണ്ണം നൽകി <strong>"Save count"</strong> അമർത്തുമ്പോൾ എല്ലാ ജീവനക്കാരുടെയും ഫോണുകളിൽ ഉടൻ തന്നെ തത്സമയം അപ്‌ഡേറ്റ് ആകും!
-        </p>
-        <!-- Interactive Mini Demo -->
-        <div class="demo-mini-card">
-          <div class="demo-mini-name">
-            <strong>Broom (Cleaning supplies)</strong>
-            <span>Unit: pcs | Min: 20</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button type="button" class="step-btn" id="demoMinusBtn">-</button>
-            <input type="number" id="demoCountInput" value="25" style="width: 60px; height: 38px; text-align: center; background: #0b121c; border: 1px solid #23364c; color: #fff; border-radius: 6px; font-weight: 700;" />
-            <button type="button" class="step-btn" id="demoPlusBtn">+</button>
-            <button type="button" class="btn-primary" id="demoSaveBtn" style="padding: 8px 14px;">Save count</button>
-          </div>
-        </div>
-        <div id="demoFeedback" style="display:none;" class="guide-feedback-box guide-feedback-success">
-          <span>✓ സൂപ്പർ! ഇതുപോലെയാണ് സ്റ്റോക്ക് സേവ് ചെയ്യുന്നത്.</span>
-        </div>
-      </div>
-
-      <!-- Wizard Navigation Bottom Controls -->
-      <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid #1e2f42; padding-top: 14px;">
-        <button type="button" class="btn-secondary" id="guidePrevBtn" style="display:none;">← Back</button>
-        <button type="button" class="btn-secondary" id="guideSkipBtn">Skip Tour</button>
-        <button type="button" class="btn-primary" id="guideNextBtn">Next Step →</button>
-        <button type="button" class="btn-primary" id="guideFinishBtn" style="display:none; background: #10b981;">🚀 Start Counting Now!</button>
       </div>
     </div>
   </div>

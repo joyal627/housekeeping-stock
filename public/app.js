@@ -49,32 +49,6 @@
   const downloadZeroCsvBtn = document.getElementById('downloadZeroCsvBtn');
   const shareZeroReportBtn = document.getElementById('shareZeroReportBtn');
 
-  // Interactive Staff Guide Elements
-  const startTourGuideBtn = document.getElementById('startTourGuideBtn');
-  const interactiveGuideModal = document.getElementById('interactiveGuideModal');
-  const closeGuideWizardBtn = document.getElementById('closeGuideWizardBtn');
-  const guideProgressFill = document.getElementById('guideProgressFill');
-  const nodeStep1 = document.getElementById('nodeStep1');
-  const nodeStep2 = document.getElementById('nodeStep2');
-  const nodeStep3 = document.getElementById('nodeStep3');
-  const guideStep1View = document.getElementById('guideStep1View');
-  const guideStep2View = document.getElementById('guideStep2View');
-  const guideStep3View = document.getElementById('guideStep3View');
-  const guideActionAlertBtn = document.getElementById('guideActionAlertBtn');
-  const guideStep1Feedback = document.getElementById('guideStep1Feedback');
-  const guideStep2InstallWrapper = document.getElementById('guideStep2InstallWrapper');
-  const guideActionInstallBtn = document.getElementById('guideActionInstallBtn');
-  const guideStep2ManualGuide = document.getElementById('guideStep2ManualGuide');
-  const demoMinusBtn = document.getElementById('demoMinusBtn');
-  const demoPlusBtn = document.getElementById('demoPlusBtn');
-  const demoCountInput = document.getElementById('demoCountInput');
-  const demoSaveBtn = document.getElementById('demoSaveBtn');
-  const demoFeedback = document.getElementById('demoFeedback');
-  const guidePrevBtn = document.getElementById('guidePrevBtn');
-  const guideSkipBtn = document.getElementById('guideSkipBtn');
-  const guideNextBtn = document.getElementById('guideNextBtn');
-  const guideFinishBtn = document.getElementById('guideFinishBtn');
-
   // Alerts & Settings Modal Elements
   const alertsSettingsModal = document.getElementById('alertsSettingsModal');
   const closeAlertsSettingsModal = document.getElementById('closeAlertsSettingsModal');
@@ -118,7 +92,6 @@
     setupNotificationHandlers();
     setupPwaInstall();
     setupZeroStockReport();
-    setupInteractiveGuide();
     loadData();
 
     if (location.protocol.startsWith('http')) {
@@ -256,207 +229,6 @@
       enableNotifyBtn.classList.remove('active');
       notifyBtnText.textContent = '🔔 Alerts & Settings';
     }
-  }
-
-  // Interactive Staff Step-by-Step Guide Wizard
-  let wizardCurrentStep = 1;
-
-  function setupInteractiveGuide() {
-    if (!interactiveGuideModal) return;
-
-    if (startTourGuideBtn) {
-      startTourGuideBtn.addEventListener('click', () => {
-        openInteractiveGuide(1);
-      });
-    }
-
-    const isFirstTime = !localStorage.getItem('hk_guide_completed');
-    if (isFirstTime) {
-      setTimeout(() => {
-        openInteractiveGuide(1);
-      }, 800);
-    }
-
-    if (closeGuideWizardBtn) closeGuideWizardBtn.addEventListener('click', closeInteractiveGuide);
-    if (guideSkipBtn) guideSkipBtn.addEventListener('click', closeInteractiveGuide);
-
-    if (guidePrevBtn) {
-      guidePrevBtn.addEventListener('click', () => {
-        if (wizardCurrentStep > 1) {
-          setWizardStep(wizardCurrentStep - 1);
-        }
-      });
-    }
-
-    if (guideNextBtn) {
-      guideNextBtn.addEventListener('click', () => {
-        if (wizardCurrentStep < 3) {
-          setWizardStep(wizardCurrentStep + 1);
-        }
-      });
-    }
-
-    if (guideFinishBtn) {
-      guideFinishBtn.addEventListener('click', () => {
-        closeInteractiveGuide();
-        playAlertChime();
-        showToast('🚀 All Set! സ്റ്റോക്ക് എണ്ണാൻ ആരംഭിക്കാം.', '✅');
-        if (categoriesContainer) {
-          categoriesContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      });
-    }
-
-    // Step 1: Real Action Trigger for Notification Permission
-    if (guideActionAlertBtn) {
-      guideActionAlertBtn.addEventListener('click', async () => {
-        if (!('Notification' in window)) {
-          guideStep1Feedback.style.display = 'flex';
-          guideStep1Feedback.className = 'guide-feedback-box guide-feedback-warning';
-          guideStep1Feedback.innerHTML = '<span>⚠️ ഈ ബ്രൗസറിൽ വെബ് നോട്ടിഫിക്കേഷൻ സപ്പോർട്ട് ഇല്ല. In-app ശബ്ദ അലേർട്ടുകൾ പ്രവർത്തിക്കും.</span>';
-          return;
-        }
-
-        try {
-          const perm = await Notification.requestPermission();
-          updateNotificationStatusUI();
-          guideStep1Feedback.style.display = 'flex';
-
-          if (perm === 'granted') {
-            playAlertChime();
-            guideStep1Feedback.className = 'guide-feedback-box guide-feedback-success';
-            guideStep1Feedback.innerHTML = '<span>✅ അടിപൊളി! സ്റ്റോക്ക് അലേർട്ടുകൾ വിജയകരമായി ഓൺ ആയി.</span>';
-            guideActionAlertBtn.textContent = 'Alerts Active ✓';
-            guideActionAlertBtn.style.background = '#10b981';
-            setTimeout(() => {
-              setWizardStep(2);
-            }, 1200);
-          } else {
-            guideStep1Feedback.className = 'guide-feedback-box guide-feedback-warning';
-            guideStep1Feedback.innerHTML = '<span>👆 നിങ്ങളുടെ ബ്രൗസറിന്റെ മുകളിൽ കാണുന്ന <strong>Lock (🔒)</strong> ഐക്കണിൽ ക്ലിക്ക് ചെയ്ത് Notifications <strong>Allow</strong> ചെയ്യുക!</span>';
-          }
-        } catch (e) {
-          console.log(e);
-        }
-      });
-    }
-
-    // Step 2: Real Action Trigger for PWA Install
-    if (guideActionInstallBtn) {
-      guideActionInstallBtn.addEventListener('click', () => {
-        if (state.deferredPrompt) {
-          state.deferredPrompt.prompt();
-          state.deferredPrompt.userChoice.then((choice) => {
-            if (choice.outcome === 'accepted') {
-              playAlertChime();
-              showToast('✓ ആപ്പ് ഫോണിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്തു!', '📲');
-              setWizardStep(3);
-            }
-            state.deferredPrompt = null;
-          });
-        } else {
-          openAddToPhoneModal();
-        }
-      });
-    }
-
-    // Step 3: Interactive Demo Stepper & Save
-    if (demoMinusBtn && demoPlusBtn && demoCountInput && demoSaveBtn) {
-      demoMinusBtn.addEventListener('click', () => {
-        let val = parseInt(demoCountInput.value, 10) || 0;
-        if (val > 0) demoCountInput.value = val - 1;
-      });
-
-      demoPlusBtn.addEventListener('click', () => {
-        let val = parseInt(demoCountInput.value, 10) || 0;
-        demoCountInput.value = val + 1;
-      });
-
-      demoSaveBtn.addEventListener('click', () => {
-        playAlertChime();
-        demoSaveBtn.textContent = '✓ Saved!';
-        demoSaveBtn.style.background = '#10b981';
-        demoFeedback.style.display = 'flex';
-        showToast('✓ Demo count saved successfully!', '✅');
-      });
-    }
-  }
-
-  function openInteractiveGuide(step = 1) {
-    setWizardStep(step);
-    if (interactiveGuideModal) interactiveGuideModal.classList.add('open');
-  }
-
-  function closeInteractiveGuide() {
-    localStorage.setItem('hk_guide_completed', 'true');
-    if (interactiveGuideModal) interactiveGuideModal.classList.remove('open');
-  }
-
-  function setWizardStep(step) {
-    wizardCurrentStep = step;
-
-    if (!guideProgressFill) return;
-
-    // Progress bar fill & labels
-    const pct = step === 1 ? 33 : (step === 2 ? 66 : 100);
-    guideProgressFill.style.width = `${pct}%`;
-
-    if (nodeStep1) nodeStep1.className = `wizard-step-node ${step === 1 ? 'active' : (step > 1 ? 'completed' : '')}`;
-    if (nodeStep2) nodeStep2.className = `wizard-step-node ${step === 2 ? 'active' : (step > 2 ? 'completed' : '')}`;
-    if (nodeStep3) nodeStep3.className = `wizard-step-node ${step === 3 ? 'active' : ''}`;
-
-    // Step Views
-    if (guideStep1View) guideStep1View.style.display = step === 1 ? 'flex' : 'none';
-    if (guideStep2View) guideStep2View.style.display = step === 2 ? 'flex' : 'none';
-    if (guideStep3View) guideStep3View.style.display = step === 3 ? 'flex' : 'none';
-
-    // Step 1 state check
-    if (step === 1 && 'Notification' in window && Notification.permission === 'granted') {
-      if (guideStep1Feedback) {
-        guideStep1Feedback.style.display = 'flex';
-        guideStep1Feedback.className = 'guide-feedback-box guide-feedback-success';
-        guideStep1Feedback.innerHTML = '<span>✅ അലേർട്ടുകൾ നിലവിൽ തന്നെ Active ആണ്!</span>';
-      }
-      if (guideActionAlertBtn) {
-        guideActionAlertBtn.textContent = 'Alerts Active ✓';
-        guideActionAlertBtn.style.background = '#10b981';
-      }
-    }
-
-    // Step 2 Device detection guide
-    if (step === 2 && guideStep2ManualGuide) {
-      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      if (isIos) {
-        if (guideStep2InstallWrapper) guideStep2InstallWrapper.style.display = 'none';
-        guideStep2ManualGuide.innerHTML = `
-          <div style="background:#0e1e2d; border:1px solid #1e3a54; border-radius:8px; padding:16px; text-align:center;">
-            <div style="font-size:26px; margin-bottom:8px;">⬇️</div>
-            <strong style="color:#ffffff; font-size:14px;">Safari-യിൽ താഴെയുള്ള Share ബട്ടൺ (⎋) ക്ലിക്ക് ചെയ്യുക</strong>
-            <p style="margin-top:6px; color:#94a3b8; font-size:13px;">താഴേക്ക് സ്ക്രോൾ ചെയ്ത് <strong>"Add to Home Screen ➕"</strong> തിരഞ്ഞെടുക്കുക. ശേഷം മുകളിൽ 'Add' ക്ലിക്ക് ചെയ്യുക.</p>
-          </div>
-        `;
-      } else if (state.deferredPrompt) {
-        if (guideStep2InstallWrapper) guideStep2InstallWrapper.style.display = 'block';
-        guideStep2ManualGuide.innerHTML = '';
-      } else {
-        if (guideStep2InstallWrapper) guideStep2InstallWrapper.style.display = 'none';
-        guideStep2ManualGuide.innerHTML = `
-          <div style="background:#0e1e2d; border:1px solid #1e3a54; border-radius:8px; padding:16px;">
-            <strong style="color:#38bdf8; font-size:14px;">Chrome-ൽ മുകളിൽ വലതുവശത്തുള്ള മൂന്ന് കുത്തുകളിൽ (⋮) ക്ലിക്ക് ചെയ്യുക:</strong>
-            <p style="margin-top:8px; color:#cbd5e1; font-size:13px; line-height:1.6;">
-              1. <strong>"Install app"</strong> അല്ലെങ്കിൽ <strong>"Add to Home screen"</strong> ക്ലിക്ക് ചെയ്യുക.<br/>
-              2. <strong>"Add" / "Install"</strong> തിരഞ്ഞെടുക്കുക.
-            </p>
-          </div>
-        `;
-      }
-    }
-
-    // Buttons visibility
-    if (guidePrevBtn) guidePrevBtn.style.display = step > 1 ? 'inline-block' : 'none';
-    if (guideNextBtn) guideNextBtn.style.display = step < 3 ? 'inline-block' : 'none';
-    if (guideFinishBtn) guideFinishBtn.style.display = step === 3 ? 'inline-block' : 'none';
-    if (guideSkipBtn) guideSkipBtn.style.display = step < 3 ? 'inline-block' : 'none';
   }
 
   function setupPwaInstall() {
@@ -651,7 +423,6 @@
 
     window.addEventListener('click', (e) => {
       if (e.target === zeroStockModal) zeroStockModal.classList.remove('open');
-      if (e.target === interactiveGuideModal) interactiveGuideModal.classList.remove('open');
       if (e.target === alertsSettingsModal) alertsSettingsModal.classList.remove('open');
       if (e.target === addToPhoneModal) addToPhoneModal.classList.remove('open');
     });
