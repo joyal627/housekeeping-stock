@@ -898,33 +898,208 @@ body {
   opacity: 1;
 }
 
+/* Interactive Step-by-Step Guide Wizard */
+.guide-wizard-card {
+  max-width: 540px;
+  background: #111a26;
+  border: 1px solid #23364c;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+}
+
+.wizard-progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.wizard-step-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+
+.wizard-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1c2b3d;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 2px solid #283e56;
+  transition: all 0.3s ease;
+}
+
+.wizard-step-node.active .wizard-step-circle {
+  background: #2dd4bf;
+  color: #042f2e;
+  border-color: #5eead4;
+  box-shadow: 0 0 14px rgba(45, 212, 191, 0.4);
+}
+
+.wizard-step-node.completed .wizard-step-circle {
+  background: #0f766e;
+  color: #ffffff;
+  border-color: #14b8a6;
+}
+
+.wizard-step-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.wizard-step-node.active .wizard-step-label {
+  color: #2dd4bf;
+}
+
+.wizard-progress-track {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  background: #1e2f42;
+  z-index: 1;
+}
+
+.wizard-progress-fill {
+  height: 100%;
+  background: #2dd4bf;
+  width: 0%;
+  transition: width 0.35s ease;
+}
+
+.guide-step-body {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.guide-step-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.guide-step-desc {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+.guide-action-pulse-btn {
+  background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%);
+  color: #042f2e;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 14px 24px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  box-shadow: 0 4px 20px rgba(45, 212, 191, 0.3);
+  transition: all 0.2s;
+  animation: pulse-glow 2s infinite;
+}
+
+.guide-action-pulse-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(45, 212, 191, 0.5);
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.6); }
+  70% { box-shadow: 0 0 0 14px rgba(45, 212, 191, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
+}
+
+.guide-feedback-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.guide-feedback-success {
+  background: #064e3b;
+  border: 1px solid #059669;
+  color: #6ee7b7;
+}
+
+.guide-feedback-warning {
+  background: #451a03;
+  border: 1px solid #d97706;
+  color: #fde68a;
+}
+
+/* Demo mini card */
+.demo-mini-card {
+  background: #142232;
+  border: 1px solid #233a52;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.demo-mini-name strong {
+  display: block;
+  font-size: 15px;
+  color: #ffffff;
+}
+
+.demo-mini-name span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Header Tour Button */
+.tour-nav-btn {
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid #2dd4bf;
+  color: #2dd4bf;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.tour-nav-btn:hover {
+  background: #2dd4bf;
+  color: #042f2e;
+}
+
 @media (max-width: 680px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .main-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .header-actions {
-    justify-content: stretch;
-  }
-  .nav-dark-btn {
-    flex: 1;
-    justify-content: center;
-  }
-  .item-actions {
-    width: 100%;
-  }
-  .input-stepper-wrap {
-    flex: 1;
-  }
-  .count-input {
-    width: 100%;
-  }
-  .welcome-step-card {
-    flex-direction: column;
-    align-items: flex-start;
+  .wizard-step-label {
+    display: none;
   }
 }
