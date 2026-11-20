@@ -23,11 +23,11 @@
         <button class="nav-dark-btn" id="zeroStockReportBtn" title="View items with zero stock">
           <span>Zero Stock Report</span>
         </button>
-        <button class="nav-dark-btn" id="enableNotifyBtn" title="Get stock & guest amenities alerts">
-          <span id="notifyBtnText">Turn On Alerts</span>
+        <button class="nav-dark-btn" id="enableNotifyBtn" title="Configure stock alerts & phone settings">
+          <span id="notifyBtnText">🔔 Alerts & Settings</span>
         </button>
         <button class="nav-dark-btn" id="installPwaBtn" title="Add app to phone home screen">
-          <span>Add to Phone</span>
+          <span>📱 Add to Phone</span>
         </button>
       </div>
     </header>
@@ -93,6 +93,195 @@
     </div>
   </div>
 
+  <!-- Alerts & Settings Modal -->
+  <div class="modal-overlay" id="alertsSettingsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <h3>🔔 Stock Alerts & Settings</h3>
+        </div>
+        <button type="button" class="close-btn" id="closeAlertsSettingsModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Notification Permission Status -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <span>Browser / Phone Notifications</span>
+            <span class="status-pill status-default" id="notifStatusBadge">● Checking...</span>
+          </div>
+          <p class="settings-desc">
+            Get instant alerts when Guest Amenities drop below 500 or when cleaning supplies run out.
+          </p>
+          <div class="settings-btn-row">
+            <button type="button" class="btn-primary" id="settingsRequestPermissionBtn">Turn On Browser Alerts</button>
+            <button type="button" class="btn-secondary" id="testAlertBtn">🔔 Test Alert & Sound</button>
+          </div>
+        </div>
+
+        <!-- In-App Warning Sound & Banner -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <span>In-App Warning Chime & Sound</span>
+          </div>
+          <label class="switch-label">
+            <span>🔊 Play warning sound for zero & low stock</span>
+            <input type="checkbox" id="soundAlertToggle" class="toggle-input" checked />
+          </label>
+        </div>
+
+        <!-- Phone & Browser Settings Guide -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <span>📱 How to Enable in Phone / Browser Settings</span>
+          </div>
+          <p class="settings-desc">
+            If notifications are blocked or not appearing, follow these simple steps to turn them on in your phone:
+          </p>
+          
+          <div class="device-tabs">
+            <button type="button" class="device-tab-btn active" id="tabAndroidBtn">Android (Chrome)</button>
+            <button type="button" class="device-tab-btn" id="tabIosBtn">iPhone (Safari)</button>
+            <button type="button" class="device-tab-btn" id="tabPcBtn">PC / Mac</button>
+          </div>
+
+          <div id="androidGuideView">
+            <ul class="guide-step-list">
+              <li class="guide-step-item">
+                <span class="guide-step-num">1</span>
+                <span>Chrome-ൽ മുകൾ ഭാഗത്തുള്ള വെബ്സൈറ്റ് URL-ന് ഇടത് വശത്തുള്ള <strong>Lock (🔒) / Settings</strong> ഐക്കണിൽ ക്ലിക്ക് ചെയ്യുക.</span>
+              </li>
+              <li class="guide-step-item">
+                <span class="guide-step-num">2</span>
+                <span><strong>Permissions</strong> (അനുമതികൾ) -> <strong>Notifications</strong> തിരഞ്ഞെടുക്കുക.</span>
+              </li>
+              <li class="guide-step-item">
+                <span class="guide-step-num">3</span>
+                <span><strong>Allow (ഓൺ)</strong> ആക്കി മാറ്റുക.</span>
+              </li>
+              <li class="guide-step-item">
+                <span class="guide-step-num">4</span>
+                <span>കൂടാതെ ഫോൺ Settings -> Apps -> Chrome -> Notifications ON ആണെന്ന് ഉറപ്പുവരുത്തുക.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div id="iosGuideView" style="display:none;">
+            <ul class="guide-step-list">
+              <li class="guide-step-item">
+                <span class="guide-step-num">1</span>
+                <span>Safari-യിൽ ആദ്യം <strong>"Add to Phone"</strong> വഴി ഈ ആപ്പ് ഫോൺ ഹോം സ്ക്രീനിലേക്ക് ചേർക്കുക.</span>
+              </li>
+              <li class="guide-step-item">
+                <span class="guide-step-num">2</span>
+                <span>iPhone-ന്റെ പ്രധാന <strong>Settings</strong> തുറന്ന് <strong>Notifications</strong> അല്ലെങ്കിൽ <strong>Safari</strong> തുറക്കുക.</span>
+              </li>
+              <li class="guide-step-item">
+                <span class="guide-step-num">3</span>
+                <span><strong>Allow Notifications</strong> ഓൺ ചെയ്യുക.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div id="pcGuideView" style="display:none;">
+            <ul class="guide-step-list">
+              <li class="guide-step-item">
+                <span class="guide-step-num">1</span>
+                <span>ബ്രൗസറിന്റെ അഡ്രസ്സ് ബാറിലുള്ള <strong>Tune / Lock (🔒)</strong> ഐക്കണിൽ ക്ലിക്ക് ചെയ്യുക.</span>
+              </li>
+              <li class="guide-step-item">
+                <span class="guide-step-num">2</span>
+                <span><strong>Notifications</strong> എന്നതിന് നേരെയുള്ള സ്വിച്ച് <strong>Allow (ON)</strong> ആക്കുക.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-primary" id="closeSettingsBottomBtn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add to Phone Home Screen Modal -->
+  <div class="modal-overlay" id="addToPhoneModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <h3>📱 Add to Phone Home Screen</h3>
+        </div>
+        <button type="button" class="close-btn" id="closeAddToPhoneModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          ആപ്പ് നിങ്ങളുടെ ഫോണിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്ത് ഒറ്റ ക്ലിക്കിൽ ഉപയോഗിക്കാൻ താഴെ പറയുന്ന സ്റ്റെപ്പുകൾ ചെയ്യുക:
+        </p>
+
+        <!-- Direct Native Install button (shown when browser supports it) -->
+        <div id="nativeInstallPromptSection" style="display:none; margin-bottom: 16px;">
+          <button type="button" class="btn-primary" id="directInstallBtn" style="width: 100%; padding: 12px; font-size: 14px;">
+            📲 Install Housekeeping App Now
+          </button>
+        </div>
+
+        <div class="device-tabs">
+          <button type="button" class="device-tab-btn active" id="tabInstallAndroid">Android</button>
+          <button type="button" class="device-tab-btn" id="tabInstallIos">iPhone / iPad</button>
+          <button type="button" class="device-tab-btn" id="tabInstallPc">Laptop / PC</button>
+        </div>
+
+        <div id="installAndroidView">
+          <ul class="guide-step-list">
+            <li class="guide-step-item">
+              <span class="guide-step-num">1</span>
+              <span>Chrome ബ്രൗസറിൽ മുകളിൽ വലത് വശത്തുള്ള <strong>മൂന്ന് കുത്തുകളിൽ (⋮)</strong> ക്ലിക്ക് ചെയ്യുക.</span>
+            </li>
+            <li class="guide-step-item">
+              <span class="guide-step-num">2</span>
+              <span>വരുന്ന മെനുവിൽ നിന്ന് <strong>"Install app"</strong> അല്ലെങ്കിൽ <strong>"Add to Home screen"</strong> തിരഞ്ഞെടുക്കുക.</span>
+            </li>
+            <li class="guide-step-item">
+              <span class="guide-step-num">3</span>
+              <span><strong>"Add" / "Install"</strong> ക്ലിക്ക് ചെയ്യുക. ഫോണിന്റെ സ്ക്രീനിൽ ഈ ആപ്പിന്റെ ഐക്കൺ റെഡിയാകും!</span>
+            </li>
+          </ul>
+        </div>
+
+        <div id="installIosView" style="display:none;">
+          <ul class="guide-step-list">
+            <li class="guide-step-item">
+              <span class="guide-step-num">1</span>
+              <span>Safari ബ്രൗസറിൽ താഴെയുള്ള <strong>Share ഐക്കണിൽ ( <span style="font-size:16px;">⎋</span> )</strong> ക്ലിക്ക് ചെയ്യുക.</span>
+            </li>
+            <li class="guide-step-item">
+              <span class="guide-step-num">2</span>
+              <span>താഴേക്ക് സ്ക്രോൾ ചെയ്ത് <strong>"Add to Home Screen" ( <span style="font-size:16px;">➕</span> )</strong> ക്ലിക്ക് ചെയ്യുക.</span>
+            </li>
+            <li class="guide-step-item">
+              <span class="guide-step-num">3</span>
+              <span>മുകളിൽ വലതുവശത്തുള്ള <strong>"Add"</strong> ക്ലിക്ക് ചെയ്യുക.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div id="installPcView" style="display:none;">
+          <ul class="guide-step-list">
+            <li class="guide-step-item">
+              <span class="guide-step-num">1</span>
+              <span>ബ്രൗസറിന്റെ അഡ്രസ്സ് ബാറിന്റെ വലത് വശത്തുള്ള <strong>Install ( ⊕ )</strong> ഐക്കണിൽ ക്ലിക്ക് ചെയ്യുക.</span>
+            </li>
+            <li class="guide-step-item">
+              <span class="guide-step-num">2</span>
+              <span><strong>"Install"</strong> ക്ലിക്ക് ചെയ്യുക. കമ്പ്യൂട്ടറിൽ ഡെസ്ക്ടോപ്പ് ആപ്പായി ഇത് പ്രവർത്തിക്കും.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-primary" id="closeInstallBottomBtn">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- First-time Welcome Popup Modal (Alerts & Add to Phone) -->
   <div class="modal-overlay" id="welcomeFirstTimeModal">
     <div class="modal-card">
@@ -102,23 +291,23 @@
       </div>
       <div class="modal-body">
         <p class="modal-desc" style="color: #cbd5e1; margin-bottom: 18px;">
-          Welcome to Housekeeping Stock Count! Please set up your quick alerts and shortcut:
+          Welcome to Housekeeping Stock Count! കൃത്യമായ സ്റ്റോക്ക് ലഭിക്കുന്നതിനായി താഴെ പറയുന്ന 2 ഓപ്ഷനുകൾ ഓൺ ചെയ്യുക:
         </p>
         
         <div class="welcome-step-card">
           <div class="step-info">
-            <strong>1. Turn On Stock Alerts</strong>
-            <p>Get notified when Guest Amenities fall below 500 or chemicals/stocks are low.</p>
+            <strong>1. Turn On Stock Alerts (അലേർട്ടുകൾ ഓൺ ചെയ്യുക)</strong>
+            <p>Guest Amenities 500-ൽ താഴെ പോകുമ്പോഴും കെമിക്കൽ സ്റ്റോക്ക് കുറയുമ്പോഴും തത്സമയ അലേർട്ട് ലഭിക്കും.</p>
           </div>
-          <button type="button" class="btn-primary-sm" id="welcomeEnableAlertsBtn">Enable Alerts</button>
+          <button type="button" class="btn-primary-sm" id="welcomeEnableAlertsBtn">Configure / Turn On ⚙️</button>
         </div>
 
         <div class="welcome-step-card" style="margin-top: 12px;">
           <div class="step-info">
-            <strong>2. Add to Phone Home Screen</strong>
-            <p>Open this app directly with 1 tap from your mobile phone home screen.</p>
+            <strong>2. Add to Phone (ഫോൺ സ്ക്രീനിലേക്ക് ചേർക്കുക)</strong>
+            <p>മൊബൈൽ ഫോൺ ഹോം സ്ക്രീനിൽ ഒറ്റ ടാപ്പിൽ ആപ്പ് തുറക്കാൻ.</p>
           </div>
-          <button type="button" class="btn-secondary-sm" id="welcomeAddToPhoneBtn">Add to Phone</button>
+          <button type="button" class="btn-secondary-sm" id="welcomeAddToPhoneBtn">Add to Phone 📱</button>
         </div>
       </div>
       <div class="modal-actions" style="margin-top: 24px;">
@@ -127,22 +316,10 @@
     </div>
   </div>
 
-  <!-- iOS Add to Home Screen Instructions Modal -->
-  <div class="modal-overlay" id="iosModal">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>Add to Phone Home Screen</h3>
-        <button type="button" class="close-btn" id="closeIosModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="modal-desc">To add this Housekeeping app to your iPhone/iPad:</p>
-        <ol style="margin-left: 20px; color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-          <li>Tap the <strong>Share</strong> button ( <span style="font-size: 16px;">⎋</span> ) at the bottom of Safari.</li>
-          <li>Scroll down and tap <strong>"Add to Home Screen"</strong> ( <span style="font-size: 16px;">➕</span> ).</li>
-          <li>Tap <strong>Add</strong> at top right.</li>
-        </ol>
-      </div>
-    </div>
+  <!-- In-App Floating Toast Notice -->
+  <div class="toast-box" id="appToast">
+    <span id="toastIcon">🔔</span>
+    <span id="toastMsg">Alert</span>
   </div>
 
   <script src="app.js"></script>

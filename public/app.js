@@ -56,8 +56,41 @@
   const welcomeAddToPhoneBtn = document.getElementById('welcomeAddToPhoneBtn');
   const dismissWelcomeBtn = document.getElementById('dismissWelcomeBtn');
 
-  const iosModal = document.getElementById('iosModal');
-  const closeIosModal = document.getElementById('closeIosModal');
+  // Alerts & Settings Modal Elements
+  const alertsSettingsModal = document.getElementById('alertsSettingsModal');
+  const closeAlertsSettingsModal = document.getElementById('closeAlertsSettingsModal');
+  const closeSettingsBottomBtn = document.getElementById('closeSettingsBottomBtn');
+  const notifStatusBadge = document.getElementById('notifStatusBadge');
+  const settingsRequestPermissionBtn = document.getElementById('settingsRequestPermissionBtn');
+  const testAlertBtn = document.getElementById('testAlertBtn');
+  const soundAlertToggle = document.getElementById('soundAlertToggle');
+
+  // Settings Device Tabs
+  const tabAndroidBtn = document.getElementById('tabAndroidBtn');
+  const tabIosBtn = document.getElementById('tabIosBtn');
+  const tabPcBtn = document.getElementById('tabPcBtn');
+  const androidGuideView = document.getElementById('androidGuideView');
+  const iosGuideView = document.getElementById('iosGuideView');
+  const pcGuideView = document.getElementById('pcGuideView');
+
+  // Add to Phone Modal Elements
+  const addToPhoneModal = document.getElementById('addToPhoneModal');
+  const closeAddToPhoneModal = document.getElementById('closeAddToPhoneModal');
+  const closeInstallBottomBtn = document.getElementById('closeInstallBottomBtn');
+  const nativeInstallPromptSection = document.getElementById('nativeInstallPromptSection');
+  const directInstallBtn = document.getElementById('directInstallBtn');
+
+  const tabInstallAndroid = document.getElementById('tabInstallAndroid');
+  const tabInstallIos = document.getElementById('tabInstallIos');
+  const tabInstallPc = document.getElementById('tabInstallPc');
+  const installAndroidView = document.getElementById('installAndroidView');
+  const installIosView = document.getElementById('installIosView');
+  const installPcView = document.getElementById('installPcView');
+
+  // Toast Box
+  const appToast = document.getElementById('appToast');
+  const toastMsg = document.getElementById('toastMsg');
+  const toastIcon = document.getElementById('toastIcon');
 
   let isFirstRender = true;
 
@@ -80,6 +113,132 @@
     }
   }
 
+  // Web Audio Synthesizer Chime
+  function playAlertChime() {
+    if (localStorage.getItem('hk_sound_enabled') === 'false') return;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (e) {
+      console.log("Audio not allowed or blocked", e);
+    }
+  }
+
+  // Floating Toast
+  function showToast(msg, icon = '🔔') {
+    if (!appToast) return;
+    toastMsg.textContent = msg;
+    toastIcon.textContent = icon;
+    appToast.classList.add('show');
+    setTimeout(() => {
+      appToast.classList.remove('show');
+    }, 3500);
+  }
+
+  // Device Auto-Detection
+  function detectDeviceAndSelectTab() {
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isAndroid = /Android/.test(navigator.userAgent);
+    if (isIos) {
+      switchInstallTab('ios');
+      switchSettingsTab('ios');
+    } else if (isAndroid) {
+      switchInstallTab('android');
+      switchSettingsTab('android');
+    } else {
+      switchInstallTab('pc');
+      switchSettingsTab('pc');
+    }
+  }
+
+  function openAlertsSettingsModal() {
+    updateNotificationStatusUI();
+    detectDeviceAndSelectTab();
+    alertsSettingsModal.classList.add('open');
+  }
+
+  function openAddToPhoneModal() {
+    detectDeviceAndSelectTab();
+    if (state.deferredPrompt && nativeInstallPromptSection) {
+      nativeInstallPromptSection.style.display = 'block';
+    } else if (nativeInstallPromptSection) {
+      nativeInstallPromptSection.style.display = 'none';
+    }
+    addToPhoneModal.classList.add('open');
+  }
+
+  function switchSettingsTab(tab) {
+    if (!tabAndroidBtn) return;
+    tabAndroidBtn.classList.toggle('active', tab === 'android');
+    tabIosBtn.classList.toggle('active', tab === 'ios');
+    tabPcBtn.classList.toggle('active', tab === 'pc');
+    androidGuideView.style.display = tab === 'android' ? 'block' : 'none';
+    iosGuideView.style.display = tab === 'ios' ? 'block' : 'none';
+    pcGuideView.style.display = tab === 'pc' ? 'block' : 'none';
+  }
+
+  function switchInstallTab(tab) {
+    if (!tabInstallAndroid) return;
+    tabInstallAndroid.classList.toggle('active', tab === 'android');
+    tabInstallIos.classList.toggle('active', tab === 'ios');
+    tabInstallPc.classList.toggle('active', tab === 'pc');
+    installAndroidView.style.display = tab === 'android' ? 'block' : 'none';
+    installIosView.style.display = tab === 'ios' ? 'block' : 'none';
+    installPcView.style.display = tab === 'pc' ? 'block' : 'none';
+  }
+
+  function updateNotificationStatusUI() {
+    if (!notifStatusBadge) return;
+    if (!('Notification' in window)) {
+      notifStatusBadge.textContent = '● Not Supported';
+      notifStatusBadge.className = 'status-pill status-denied';
+      if (settingsRequestPermissionBtn) settingsRequestPermissionBtn.style.display = 'none';
+      return;
+    }
+    const perm = Notification.permission;
+    if (perm === 'granted') {
+      notifStatusBadge.textContent = '● Active ✓';
+      notifStatusBadge.className = 'status-pill status-granted';
+      if (settingsRequestPermissionBtn) {
+        settingsRequestPermissionBtn.textContent = 'Browser Alerts Active ✓';
+        settingsRequestPermissionBtn.style.background = '#10b981';
+      }
+      enableNotifyBtn.classList.add('active');
+      notifyBtnText.textContent = '🔔 Alerts: Active ✓';
+    } else if (perm === 'denied') {
+      notifStatusBadge.textContent = '● Blocked in Settings';
+      notifStatusBadge.className = 'status-pill status-denied';
+      if (settingsRequestPermissionBtn) {
+        settingsRequestPermissionBtn.textContent = 'Enable in Settings Below ⬇';
+        settingsRequestPermissionBtn.style.background = '#dc2626';
+      }
+      enableNotifyBtn.classList.remove('active');
+      notifyBtnText.textContent = '🔔 Alerts: Blocked ⚠️';
+    } else {
+      notifStatusBadge.textContent = '● Not Enabled';
+      notifStatusBadge.className = 'status-pill status-default';
+      if (settingsRequestPermissionBtn) {
+        settingsRequestPermissionBtn.textContent = 'Turn On Browser Alerts';
+        settingsRequestPermissionBtn.style.background = 'var(--btn-save-bg)';
+        settingsRequestPermissionBtn.style.color = 'var(--btn-save-text)';
+      }
+      enableNotifyBtn.classList.remove('active');
+      notifyBtnText.textContent = '🔔 Alerts & Settings';
+    }
+  }
+
   // First-time Welcome Popup
   function setupFirstTimeWelcomeModal() {
     const isFirstTime = !localStorage.getItem('hk_first_visit_completed');
@@ -98,13 +257,23 @@
     closeWelcomeModal.addEventListener('click', dismiss);
 
     welcomeEnableAlertsBtn.addEventListener('click', async () => {
-      await requestNotificationPermission();
-      welcomeEnableAlertsBtn.textContent = 'Alerts Active ✓';
-      welcomeEnableAlertsBtn.style.background = '#10b981';
+      welcomeFirstTimeModal.classList.remove('open');
+      openAlertsSettingsModal();
+      if ('Notification' in window && Notification.permission === 'default') {
+        try {
+          const perm = await Notification.requestPermission();
+          updateNotificationStatusUI();
+          if (perm === 'granted') {
+            playAlertChime();
+            showToast('✓ Stock alerts turned ON successfully!', '✅');
+          }
+        } catch (e) {}
+      }
     });
 
     welcomeAddToPhoneBtn.addEventListener('click', () => {
-      triggerPwaInstall();
+      welcomeFirstTimeModal.classList.remove('open');
+      openAddToPhoneModal();
     });
   }
 
@@ -113,83 +282,99 @@
       e.preventDefault();
       state.deferredPrompt = e;
       installPwaBtn.style.display = 'inline-flex';
+      if (nativeInstallPromptSection) nativeInstallPromptSection.style.display = 'block';
     });
 
-    installPwaBtn.addEventListener('click', () => {
-      triggerPwaInstall();
-    });
+    installPwaBtn.addEventListener('click', openAddToPhoneModal);
+    closeAddToPhoneModal.addEventListener('click', () => addToPhoneModal.classList.remove('open'));
+    closeInstallBottomBtn.addEventListener('click', () => addToPhoneModal.classList.remove('open'));
 
-    closeIosModal.addEventListener('click', () => {
-      iosModal.classList.remove('open');
-    });
-  }
-
-  function triggerPwaInstall() {
-    if (state.deferredPrompt) {
-      state.deferredPrompt.prompt();
-      state.deferredPrompt.userChoice.then(() => {
-        state.deferredPrompt = null;
+    if (directInstallBtn) {
+      directInstallBtn.addEventListener('click', () => {
+        if (state.deferredPrompt) {
+          state.deferredPrompt.prompt();
+          state.deferredPrompt.userChoice.then(() => {
+            state.deferredPrompt = null;
+            if (nativeInstallPromptSection) nativeInstallPromptSection.style.display = 'none';
+          });
+        }
       });
-    } else {
-      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      if (isIos) {
-        iosModal.classList.add('open');
-      } else {
-        alert('To add to home screen, tap your browser menu (⋮) and tap "Add to Home screen".');
-      }
     }
-  }
 
-  async function requestNotificationPermission() {
-    if (!('Notification' in window)) return false;
-    if (Notification.permission === 'granted') {
-      updateNotifyBtnState(true);
-      return true;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      updateNotifyBtnState(true);
-      new Notification('Alerts Enabled', {
-        body: 'You will receive notifications for low stock & guest amenities.',
-        icon: 'icon.png'
-      });
-      checkAndSendStockNotifications();
-      return true;
-    }
-    return false;
+    tabInstallAndroid.addEventListener('click', () => switchInstallTab('android'));
+    tabInstallIos.addEventListener('click', () => switchInstallTab('ios'));
+    tabInstallPc.addEventListener('click', () => switchInstallTab('pc'));
   }
 
   function setupNotificationHandlers() {
-    if (!('Notification' in window)) {
-      enableNotifyBtn.style.display = 'none';
-      return;
-    }
+    updateNotificationStatusUI();
 
-    if (Notification.permission === 'granted') {
-      updateNotifyBtnState(true);
-    }
+    enableNotifyBtn.addEventListener('click', openAlertsSettingsModal);
+    closeAlertsSettingsModal.addEventListener('click', () => alertsSettingsModal.classList.remove('open'));
+    closeSettingsBottomBtn.addEventListener('click', () => alertsSettingsModal.classList.remove('open'));
 
-    enableNotifyBtn.addEventListener('click', async () => {
-      if (Notification.permission === 'granted') {
-        alert('Stock alerts are already active!');
-        checkAndSendStockNotifications();
+    // Sound toggle
+    const soundPref = localStorage.getItem('hk_sound_enabled');
+    if (soundPref !== null) {
+      soundAlertToggle.checked = soundPref !== 'false';
+    }
+    soundAlertToggle.addEventListener('change', (e) => {
+      localStorage.setItem('hk_sound_enabled', e.target.checked);
+      showToast(e.target.checked ? '🔊 In-app warning sound enabled' : '🔇 In-app warning sound muted', '🔊');
+      if (e.target.checked) playAlertChime();
+    });
+
+    // Request Notification Permission
+    settingsRequestPermissionBtn.addEventListener('click', async () => {
+      if (!('Notification' in window)) {
+        showToast('Notifications not supported in this browser.', '⚠️');
         return;
       }
-      const granted = await requestNotificationPermission();
-      if (!granted) {
-        alert('Notifications were blocked. Please enable notifications in your browser site settings.');
+      if (Notification.permission === 'denied') {
+        showToast('⚠️ Blocked! Please follow the steps below to enable.', '⚠️');
+        detectDeviceAndSelectTab();
+        return;
+      }
+      try {
+        const perm = await Notification.requestPermission();
+        updateNotificationStatusUI();
+        if (perm === 'granted') {
+          playAlertChime();
+          showToast('✓ Stock alerts turned ON successfully!', '✅');
+          new Notification('Housekeeping Stock Count', {
+            body: '✓ Stock alerts are now active!',
+            icon: 'icon.png'
+          });
+        } else {
+          showToast('⚠️ Alerts not allowed. Follow the steps below.', '⚠️');
+          detectDeviceAndSelectTab();
+        }
+      } catch (e) {
+        console.log(e);
       }
     });
-  }
 
-  function updateNotifyBtnState(isActive) {
-    if (isActive) {
-      enableNotifyBtn.classList.add('active');
-      notifyBtnText.textContent = 'Alerts Active ✓';
-    } else {
-      enableNotifyBtn.classList.remove('active');
-      notifyBtnText.textContent = 'Turn On Alerts';
-    }
+    // Test Alert Button
+    testAlertBtn.addEventListener('click', () => {
+      playAlertChime();
+      const guestItems = state.items.filter(i => i.category === 'Guest amenities');
+      const guestTotal = guestItems.reduce((sum, i) => sum + (i.currentCount || 0), 0);
+      const zeroCount = state.items.filter(i => i.currentCount === 0 || i.currentCount === null).length;
+      
+      showToast(`🔔 Test Alert! Amenities: ${guestTotal} pcs | Need count: ${zeroCount}`, '🔔');
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🔔 Housekeeping Stock Alert', {
+          body: `Stock Alert Working! Amenities: ${guestTotal} pcs | Items to count: ${zeroCount}`,
+          icon: 'icon.png'
+        });
+      }
+    });
+
+    // Tab switching for settings guide
+    tabAndroidBtn.addEventListener('click', () => switchSettingsTab('android'));
+    tabIosBtn.addEventListener('click', () => switchSettingsTab('ios'));
+    tabPcBtn.addEventListener('click', () => switchSettingsTab('pc'));
   }
 
   function checkAndSendStockNotifications() {
@@ -285,7 +470,8 @@
     window.addEventListener('click', (e) => {
       if (e.target === zeroStockModal) zeroStockModal.classList.remove('open');
       if (e.target === welcomeFirstTimeModal) welcomeFirstTimeModal.classList.remove('open');
-      if (e.target === iosModal) iosModal.classList.remove('open');
+      if (e.target === alertsSettingsModal) alertsSettingsModal.classList.remove('open');
+      if (e.target === addToPhoneModal) addToPhoneModal.classList.remove('open');
     });
   }
 
