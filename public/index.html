@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Housekeeping Stock Count</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0c141e" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header with Clean Text Action Buttons (No emojis as requested) -->
+    <header class="main-header">
+      <div class="header-titles">
+        <h1 class="title">Housekeeping Stock Count</h1>
+        <p class="subtitle">Count supplies on schedule and get reminded when a count is due.</p>
+      </div>
+      <div class="header-actions">
+        <button class="nav-dark-btn" id="zeroStockReportBtn" title="View items with zero stock">
+          <span>Zero Stock Report</span>
+        </button>
+        <button class="nav-dark-btn" id="enableNotifyBtn" title="Get stock & guest amenities alerts">
+          <span id="notifyBtnText">Turn On Alerts</span>
+        </button>
+        <button class="nav-dark-btn" id="installPwaBtn" title="Add app to phone home screen">
+          <span>Add to Phone</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Urgent Guest Amenities Banner (Appears when guest amenities < 500) -->
+    <div class="amenities-urgent-alert" id="amenitiesAlertBanner" style="display: none;">
+      <span class="alert-icon">⚠️</span>
+      <div class="alert-text">
+        <strong>Guest Amenities Warning:</strong> Total stock is <span id="amenitiesCurrentTotal">0</span> (Below 500, top up needed immediately!)
+      </div>
+    </div>
+
+    <!-- Top 3 Stat Cards -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="statItemsTracked">14</div>
+        <div class="stat-label">Items tracked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statToCountNow">14</div>
+        <div class="stat-label">To count now</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statTotalStock">0</div>
+        <div class="stat-label">Total stock (min 500)</div>
+      </div>
+    </section>
+
+    <!-- Horizontal Swipeable Individual Stock Summary (Right Swipe) -->
+    <div class="swipe-summary-wrapper">
+      <div class="swipe-summary-track" id="swipeSummaryTrack"></div>
+    </div>
+
+    <!-- Warnings Box (Exact match to screenshot) -->
+    <section class="warning-box" id="warningBox">
+      <div class="warning-title" id="warningTitle">15 warnings</div>
+      <ul class="warning-list" id="warningList"></ul>
+    </section>
+
+    <!-- Items Section Container -->
+    <main class="categories-container" id="categoriesContainer"></main>
+  </div>
+
+  <!-- Zero Stock Report Modal with Back, Download, and Share Buttons -->
+  <div class="modal-overlay" id="zeroStockModal">
+    <div class="modal-card wide">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <button type="button" class="btn-back" id="backFromZeroModalBtn">← Back</button>
+          <h3>Zero Stock Report</h3>
+        </div>
+        <button type="button" class="close-btn" id="closeZeroStockModal">&times;</button>
+      </div>
+      <div class="modal-body" id="zeroStockContent">
+        <!-- Rendered Zero Stock table -->
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="backBottomZeroBtn">← Back</button>
+        <button type="button" class="btn-secondary" onclick="window.print()">Print</button>
+        <button type="button" class="btn-secondary" id="shareZeroReportBtn">Share Report</button>
+        <button type="button" class="btn-primary" id="downloadZeroCsvBtn">Download CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- First-time Welcome Popup Modal (Alerts & Add to Phone) -->
+  <div class="modal-overlay" id="welcomeFirstTimeModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Housekeeping Stock Count Setup</h3>
+        <button type="button" class="close-btn" id="closeWelcomeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc" style="color: #cbd5e1; margin-bottom: 18px;">
+          Welcome to Housekeeping Stock Count! Please set up your quick alerts and shortcut:
+        </p>
+        
+        <div class="welcome-step-card">
+          <div class="step-info">
+            <strong>1. Turn On Stock Alerts</strong>
+            <p>Get notified when Guest Amenities fall below 500 or chemicals/stocks are low.</p>
+          </div>
+          <button type="button" class="btn-primary-sm" id="welcomeEnableAlertsBtn">Enable Alerts</button>
+        </div>
+
+        <div class="welcome-step-card" style="margin-top: 12px;">
+          <div class="step-info">
+            <strong>2. Add to Phone Home Screen</strong>
+            <p>Open this app directly with 1 tap from your mobile phone home screen.</p>
+          </div>
+          <button type="button" class="btn-secondary-sm" id="welcomeAddToPhoneBtn">Add to Phone</button>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top: 24px;">
+        <button type="button" class="btn-primary" id="dismissWelcomeBtn">Continue to Stock Count →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS Add to Home Screen Instructions Modal -->
+  <div class="modal-overlay" id="iosModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Add to Phone Home Screen</h3>
+        <button type="button" class="close-btn" id="closeIosModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">To add this Housekeeping app to your iPhone/iPad:</p>
+        <ol style="margin-left: 20px; color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+          <li>Tap the <strong>Share</strong> button ( <span style="font-size: 16px;">⎋</span> ) at the bottom of Safari.</li>
+          <li>Scroll down and tap <strong>"Add to Home Screen"</strong> ( <span style="font-size: 16px;">➕</span> ).</li>
+          <li>Tap <strong>Add</strong> at top right.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

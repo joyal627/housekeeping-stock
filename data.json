@@ -1,0 +1,218 @@
+{
+  "settings": {
+    "minTotalStock": 500,
+    "title": "Housekeeping Stock Count",
+    "subtitle": "Count supplies on schedule and get reminded when a count is due.",
+    "reminderFrequencyHours": 24
+  },
+  "items": [
+    {
+      "id": "broom",
+      "name": "Broom",
+      "category": "Cleaning supplies",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": "Staff",
+      "minStock": 20
+    },
+    {
+      "id": "mop",
+      "name": "Mop",
+      "category": "Cleaning supplies",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 20
+    },
+    {
+      "id": "gloves",
+      "name": "Gloves",
+      "category": "Cleaning supplies",
+      "unit": "boxes",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 50
+    },
+    {
+      "id": "room_freshener",
+      "name": "Room freshener",
+      "category": "Cleaning supplies",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 25
+    },
+    {
+      "id": "toilet_roll",
+      "name": "Toilet roll",
+      "category": "Cleaning supplies",
+      "unit": "boxes",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 100
+    },
+    {
+      "id": "restaurant_tissue",
+      "name": "Restaurant tissue",
+      "category": "Cleaning supplies",
+      "unit": "boxes",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 80
+    },
+    {
+      "id": "floor_cleaner",
+      "name": "Floor cleaner",
+      "category": "Chemical supplies",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": "Staff",
+      "minStock": 3,
+      "maxLimit": 5
+    },
+    {
+      "id": "glass_cleaner",
+      "name": "Glass cleaner",
+      "category": "Chemical supplies",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 3,
+      "maxLimit": 5
+    },
+    {
+      "id": "dental_kit",
+      "name": "Dental kit",
+      "category": "Guest amenities",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 60
+    },
+    {
+      "id": "shaving_kit",
+      "name": "Shaving kit",
+      "category": "Guest amenities",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 50
+    },
+    {
+      "id": "shower_cap",
+      "name": "Shower cap",
+      "category": "Guest amenities",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 50
+    },
+    {
+      "id": "soap",
+      "name": "Soap",
+      "category": "Guest amenities",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 80
+    },
+    {
+      "id": "shampoo",
+      "name": "Shampoo",
+      "category": "Guest amenities",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": "Staff",
+      "minStock": 80
+    },
+    {
+      "id": "moisturiser",
+      "name": "Moisturiser",
+      "category": "Guest amenities",
+      "unit": "pcs",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 50
+    }
+  ],
+  "history": [
+    {
+      "timestamp": "2026-11-20T12:46:50.117Z",
+      "itemId": "broom",
+      "itemName": "Broom",
+      "previousCount": null,
+      "newCount": 3,
+      "staffName": "Staff"
+    },
+    {
+      "timestamp": "2026-11-20T12:46:25.773Z",
+      "itemId": "broom",
+      "itemName": "Broom",
+      "previousCount": 25,
+      "newCount": 25,
+      "staffName": "Staff"
+    },
+    {
+      "timestamp": "2026-11-15T15:25:02.604Z",
+      "itemId": "broom",
+      "itemName": "Broom",
+      "previousCount": null,
+      "newCount": 25,
+      "staffName": "Staff"
+    },
+    {
+      "timestamp": "2026-11-15T15:19:09.447Z",
+      "itemId": "floor_cleaner",
+      "itemName": "Floor cleaner",
+      "previousCount": null,
+      "newCount": 5,
+      "staffName": "Staff"
+    },
+    {
+      "timestamp": "2026-11-15T15:16:36.523Z",
+      "itemId": "shampoo",
+      "itemName": "Shampoo",
+      "previousCount": 0,
+      "newCount": 0,
+      "staffName": "Staff"
+    },
+    {
+      "timestamp": "2026-11-15T15:16:36.336Z",
+      "itemId": "shampoo",
+      "itemName": "Shampoo",
+      "previousCount": 0,
+      "newCount": 0,
+      "staffName": "Staff"
+    },
+    {
+      "timestamp": "2026-11-15T15:16:36.175Z",
+      "itemId": "shampoo",
+      "itemName": "Shampoo",
+      "previousCount": null,
+      "newCount": 0,
+      "staffName": "Staff"
+    },
+    {
+      "timestamp": "2026-11-15T15:15:40.726Z",
+      "itemId": "floor_cleaner",
+      "itemName": "Floor cleaner",
+      "previousCount": null,
+      "newCount": 4,
+      "staffName": "Staff"
+    }
+  ]
+}
