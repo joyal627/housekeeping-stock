@@ -67,6 +67,28 @@
       "minStock": 80
     },
     {
+      "id": "garbage_cover_small",
+      "name": "Garbage cover small",
+      "category": "Cleaning supplies",
+      "unit": "boxes",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": "Staff",
+      "minStock": 2,
+      "maxLimit": 5
+    },
+    {
+      "id": "garbage_cover_big",
+      "name": "Garbage cover big",
+      "category": "Cleaning supplies",
+      "unit": "boxes",
+      "currentCount": null,
+      "lastCountedAt": null,
+      "countedBy": null,
+      "minStock": 2,
+      "maxLimit": 5
+    },
+    {
       "id": "floor_cleaner",
       "name": "Floor cleaner",
       "category": "Chemical supplies",
@@ -150,6 +172,14 @@
     }
   ],
   "history": [
+    {
+      "timestamp": "2026-11-20T13:37:55.581Z",
+      "itemId": "garbage_cover_small",
+      "itemName": "Garbage cover small",
+      "previousCount": null,
+      "newCount": 4,
+      "staffName": "Staff"
+    },
     {
       "timestamp": "2026-11-20T12:46:50.117Z",
       "itemId": "broom",

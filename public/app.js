@@ -14,6 +14,8 @@
     { id: "room_freshener", name: "Room freshener", category: "Cleaning supplies", unit: "pcs", currentCount: null, minStock: 25, lastCountedAt: null },
     { id: "toilet_roll", name: "Toilet roll", category: "Cleaning supplies", unit: "boxes", currentCount: null, minStock: 100, lastCountedAt: null },
     { id: "restaurant_tissue", name: "Restaurant tissue", category: "Cleaning supplies", unit: "boxes", currentCount: null, minStock: 80, lastCountedAt: null },
+    { id: "garbage_cover_small", name: "Garbage cover small", category: "Cleaning supplies", unit: "boxes", currentCount: null, minStock: 2, maxLimit: 5, lastCountedAt: null },
+    { id: "garbage_cover_big", name: "Garbage cover big", category: "Cleaning supplies", unit: "boxes", currentCount: null, minStock: 2, maxLimit: 5, lastCountedAt: null },
     { id: "floor_cleaner", name: "Floor cleaner", category: "Chemical supplies", unit: "pcs", currentCount: null, minStock: 3, maxLimit: 5, lastCountedAt: null },
     { id: "glass_cleaner", name: "Glass cleaner", category: "Chemical supplies", unit: "pcs", currentCount: null, minStock: 3, maxLimit: 5, lastCountedAt: null },
     { id: "dental_kit", name: "Dental kit", category: "Guest amenities", unit: "pcs", currentCount: null, minStock: 60, lastCountedAt: null },
@@ -549,7 +551,7 @@
                     <input 
                       type="number" 
                       min="0" 
-                      max="${item.category === 'Chemical supplies' ? 5 : 999}"
+                      max="${item.maxLimit || (item.category === 'Chemical supplies' ? 5 : 999)}"
                       inputmode="numeric" 
                       pattern="[0-9]*" 
                       class="count-input" 
@@ -703,9 +705,10 @@
         let current = parseInt(input.value, 10);
         if (isNaN(current)) current = 0;
 
-        // Check 5 limit for Chemical supplies
-        if (item && item.category === 'Chemical supplies' && current >= 5) {
-          alert('⚠️ ERROR: Chemical supplies count cannot exceed 5! (മാക്സിമം 5 എണ്ണം മാത്രമെ നൽകാവൂ).');
+        // Check 5 limit for Chemical supplies or items with maxLimit
+        const maxLimit = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
+        if (maxLimit && current >= maxLimit) {
+          alert(`⚠️ ERROR: ${item.name} count cannot exceed ${maxLimit}! (മാക്സിമം ${maxLimit} ${item.unit} മാത്രമെ നൽകാവൂ).`);
           return;
         }
 
@@ -754,9 +757,10 @@
     const num = parseInt(val, 10);
     const item = state.items.find(i => i.id === id);
 
-    // Validation 1: Chemical supplies count > 5
-    if (item && item.category === 'Chemical supplies' && num > 5) {
-      alert('⚠️ ERROR: Chemical supplies (Floor cleaner / Glass cleaner) count cannot exceed 5! (കെമിക്കലുകൾക്ക് 5-ൽ കൂടുതൽ എണ്ണം നൽകാൻ പാടില്ല).');
+    // Validation 1: Chemical supplies or maxLimit count > 5
+    const maxAllowed = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
+    if (maxAllowed && num > maxAllowed) {
+      alert(`⚠️ ERROR: ${item.name} count cannot exceed ${maxAllowed}! (${item.name} ന് ${maxAllowed} ${item.unit}-ൽ കൂടുതൽ എണ്ണം നൽകാൻ പാടില്ല).`);
       return;
     }
 
