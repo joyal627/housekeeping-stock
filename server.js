@@ -246,11 +246,11 @@ const server = http.createServer((req, res) => {
           for (const entry of rooms) {
             const roomNumber = String(entry.roomNumber || '').trim().toUpperCase();
             const status = String(entry.status || '').trim().toUpperCase();
-            if (status !== 'CK OUT') continue;
+            if (status !== 'CK OUT' && status !== 'STAY BACK') continue;
             const room = known.get(roomNumber);
             if (!room) throw new Error('Unknown room: ' + roomNumber);
-            reviewed.push(roomNumber);
-            const supplies = rules.supplyRules[room.type];
+            reviewed.push(roomNumber + (status === 'STAY BACK' ? ' (STAY BACK)' : ''));
+            const supplies = status === 'STAY BACK' ? rules.supplyRules.stayBack : rules.supplyRules[room.type];
             for (const [id, qty] of Object.entries(supplies)) totals[id] = (totals[id] || 0) + qty;
           }
           if (!reviewed.length) throw new Error('No confirmed CK OUT rooms were supplied.');
