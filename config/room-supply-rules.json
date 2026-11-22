@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "roomCount": 40,
+  "rooms": [
+    {
+      "roomNumber": "101",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "102",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "103",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "104",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "105",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "106",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "107",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "108",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "109",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "110",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "111",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "112",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "114",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "115",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "116",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "117",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "118",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "119",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "120",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "121",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "122",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "123",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "124",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "125",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "126",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "127",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "128",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "129",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "131",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "132",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "133",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "134",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "135",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "136",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "A1",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "A2",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "Treehouse",
+      "type": "standard"
+    },
+    {
+      "roomNumber": "D1",
+      "type": "special"
+    },
+    {
+      "roomNumber": "D2",
+      "type": "special"
+    },
+    {
+      "roomNumber": "Clubvilla",
+      "type": "dormitory"
+    }
+  ],
+  "supplyRules": {
+    "standard": {
+      "dental_kit": 2,
+      "soap": 2,
+      "shaving_kit": 1,
+      "shower_cap": 2,
+      "shampoo": 1,
+      "moisturiser": 1
+    },
+    "special": {
+      "soap": 2,
+      "shampoo": 1,
+      "moisturiser": 1
+    },
+    "dormitory": {
+      "dental_kit": 20,
+      "soap": 20,
+      "shampoo": 10,
+      "moisturiser": 10
+    }
+  },
+  "issuePolicy": {
+    "eligibleStatus": "CK OUT",
+    "excludeStatuses": [
+      "STAY",
+      "CK IN"
+    ],
+    "requireStaffConfirmation": true,
+    "preventDuplicateDeductions": true,
+    "requireReviewWhenRoomOrStatusIsUnclear": true
+  }
+}
