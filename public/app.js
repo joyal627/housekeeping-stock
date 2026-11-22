@@ -564,11 +564,6 @@
                   </div>
                   <button type="button" class="btn-save" id="save-btn-${item.id}" data-id="${item.id}">Save count</button>
                   <button type="button" class="btn-reset" data-id="${item.id}">Reset</button>
-                  <button type="button" class="btn-secondary-sm ocr-photo-btn" data-id="${item.id}">OCR Photo</button>
-                  <input type="file" accept="image/*" capture="environment" class="ocr-file-input" id="ocr-photo-${item.id}" data-id="${item.id}" hidden />
-                  <button type="button" class="btn-secondary-sm upload-photo-btn" data-id="${item.id}">Upload Image</button>
-                  <input type="file" accept="image/*" class="upload-file-input" id="upload-photo-${item.id}" data-id="${item.id}" hidden />
-                  <span class="photo-status" id="photo-status-${item.id}" style="font-size:12px;color:#8e9fad;">${item.photoUrl ? '<a href="' + escapeHtml(item.photoUrl) + '" target="_blank" rel="noopener" style="color:#38bdf8;">View uploaded photo</a>' : ''}</span>
                 </div>
               </div>
             `).join('')}
@@ -753,89 +748,7 @@
       });
     });
 
-    document.querySelectorAll('.ocr-photo-btn').forEach(btn => {
-      btn.addEventListener('click', () => document.getElementById('ocr-photo-' + btn.dataset.id).click());
-    });
-    document.querySelectorAll('.upload-photo-btn').forEach(btn => {
-      btn.addEventListener('click', () => document.getElementById('upload-photo-' + btn.dataset.id).click());
-    });
 
-    document.querySelectorAll('.ocr-file-input').forEach(input => {
-      input.addEventListener('change', async () => {
-        const file = input.files && input.files[0];
-        if (!file) return;
-        const id = input.dataset.id;
-        const status = document.getElementById('photo-status-' + id);
-        const countInput = document.getElementById('input-' + id);
-        if (!window.Tesseract) {
-          status.textContent = 'OCR service is not loaded. Check your internet connection.';
-          input.value = '';
-          return;
-        }
-        status.textContent = 'Reading photo...';
-        try {
-          const result = await Tesseract.recognize(file, 'eng');
-          const numbers = (result.data.text || '').match(/\\d+/g) || [];
-          const item = state.items.find(entry => entry.id === id);
-          const maxAllowed = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : 999)) : 999;
-          const valid = numbers.map(Number).filter(n => n >= 0 && n <= maxAllowed && n < 1000);
-          if (!valid.length) {
-            status.textContent = 'Number not clear — try again or enter manually.';
-            alert('Number not clear. Please take a clearer photo or enter the count manually.');
-          } else {
-            countInput.value = String(valid[valid.length - 1]);
-            countInput.dataset.userEdited = 'true';
-            status.textContent = 'OCR result added. Verify it before saving.';
-          }
-        } catch (error) {
-          status.textContent = 'OCR failed. Please try a clearer image.';
-          alert('Could not read this photo. Please try again with a clearer image.');
-        }
-        input.value = '';
-      });
-    });
-
-    document.querySelectorAll('.upload-file-input').forEach(input => {
-      input.addEventListener('change', async () => {
-        const file = input.files && input.files[0];
-        if (!file) return;
-        const id = input.dataset.id;
-        const status = document.getElementById('photo-status-' + id);
-        if (!file.type.startsWith('image/')) {
-          alert('Please select an image file.');
-          input.value = '';
-          return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          alert('Image must be 5 MB or smaller.');
-          input.value = '';
-          return;
-        }
-        status.textContent = 'Uploading image...';
-        try {
-          const dataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          const response = await fetch('/api/item-photo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, dataUrl })
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || 'Upload failed');
-          const item = state.items.find(entry => entry.id === id);
-          if (item) item.photoUrl = result.photoUrl;
-          status.innerHTML = '<a href="' + escapeHtml(result.photoUrl) + '" target="_blank" rel="noopener" style="color:#38bdf8;">View uploaded photo</a>';
-        } catch (error) {
-          status.textContent = 'Upload failed.';
-          alert(error.message || 'Could not upload image. Please try again.');
-        }
-        input.value = '';
-      });
-    });
   }
 
   async function saveCount(id, val) {
@@ -944,8 +857,13 @@
   const roomOcrBtn = document.getElementById('runRoomOcrBtn');
   const confirmRoomBtn = document.getElementById('confirmRoomDeductionBtn');
   let ocrRows = [];
-  if (roomImageInput) roomImageInput.addEventListener('change', () => {
-    const file = roomImageInput.files && roomImageInput.files[0];
+  const roomGalleryInput = document.getElementById('roomSheetGalleryImage');
+  const roomCameraBtn = document.getElementById('roomOcrCameraBtn');
+  const roomUploadBtn = document.getElementById('roomOcrUploadBtn');
+  if (roomCameraBtn && roomImageInput) roomCameraBtn.addEventListener('click', () => roomImageInput.click());
+  if (roomUploadBtn && roomGalleryInput) roomUploadBtn.addEventListener('click', () => roomGalleryInput.click());
+  function handleRoomImageChange(input) {
+    const file = input.files && input.files[0];
     if (!file) return;
     roomPreview.src = URL.createObjectURL(file);
     roomPreview.style.display = 'block';
@@ -953,7 +871,11 @@
     confirmRoomBtn.disabled = true;
     ocrRows = [];
     roomOcrStatus.textContent = 'Image ready. Tap Read Image (OCR).';
-  });
+    // Use the selected camera or gallery file for the existing room-sheet OCR action.
+    roomImageInput.selectedRoomFile = file;
+  }
+  if (roomImageInput) roomImageInput.addEventListener('change', () => handleRoomImageChange(roomImageInput));
+  if (roomGalleryInput) roomGalleryInput.addEventListener('change', () => handleRoomImageChange(roomGalleryInput));
   function renderOcrRows() {
     const opts = ['CK OUT','STAY','STAY BACK','CK IN','NOT CLEAR'];
     roomReview.innerHTML = '<h3 style="margin:14px 0 8px;">Review extracted rooms</h3>' +
@@ -965,7 +887,7 @@
     confirmRoomBtn.disabled = !ocrRows.length || ocrRows.some(r=>r.status==='NOT CLEAR'||!r.roomNumber);
   }
   if (roomOcrBtn) roomOcrBtn.addEventListener('click', async () => {
-    const file=roomImageInput.files && roomImageInput.files[0];
+    const file=roomImageInput.selectedRoomFile || (roomImageInput.files && roomImageInput.files[0]);
     if(!file){roomOcrStatus.textContent='Please select a rooming-sheet image.';return;}
     if(!window.Tesseract){roomOcrStatus.textContent='OCR library did not load. Check internet and try again.';return;}
     roomOcrBtn.disabled=true; roomOcrStatus.textContent='Reading image… please wait.';
