@@ -219,6 +219,78 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    // POST /api/housekeeping/deduct - apply reviewed checkout supplies exactly once
+    if (pathname === '/api/housekeeping/deduct' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; if (body.length > 100000) req.destroy(); });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const { batchId, rooms, staffName } = payload;
+          if (!batchId || typeof batchId !== 'string' || !Array.isArray(rooms) || !rooms.length) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'batchId and reviewed checkout rooms are required' }));
+            return;
+          }
+          appData = loadData();
+          if (!appData.housekeeping) appData.housekeeping = { processedBatches: [], deductions: [] };
+          if (appData.housekeeping.processedBatches.includes(batchId)) {
+            res.writeHead(409, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'This room-list batch was already processed.', duplicate: true }));
+            return;
+          }
+          const rules = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'room-supply-rules.json'), 'utf8'));
+          const known = new Map(rules.rooms.map(r => [r.roomNumber.toUpperCase(), r]));
+          const totals = {};
+          const reviewed = [];
+          for (const entry of rooms) {
+            const roomNumber = String(entry.roomNumber || '').trim().toUpperCase();
+            const status = String(entry.status || '').trim().toUpperCase();
+            if (status !== 'CK OUT') continue;
+            const room = known.get(roomNumber);
+            if (!room) throw new Error('Unknown room: ' + roomNumber);
+            reviewed.push(roomNumber);
+            const supplies = rules.supplyRules[room.type];
+            for (const [id, qty] of Object.entries(supplies)) totals[id] = (totals[id] || 0) + qty;
+          }
+          if (!reviewed.length) throw new Error('No confirmed CK OUT rooms were supplied.');
+          const changes = [];
+          for (const [id, qty] of Object.entries(totals)) {
+            const item = appData.items.find(i => i.id === id);
+            if (!item) throw new Error('Inventory item missing: ' + id);
+            if (!Number.isInteger(item.currentCount) || item.currentCount < qty) {
+              throw new Error('Insufficient or uncounted stock for ' + item.name + '. Required: ' + qty + ', available: ' + item.currentCount);
+            }
+            changes.push({ item, qty, previousCount: item.currentCount });
+          }
+          const timestamp = new Date().toISOString();
+          for (const change of changes) {
+            change.item.currentCount -= change.qty;
+            change.item.lastCountedAt = timestamp;
+            change.item.countedBy = staffName && String(staffName).trim() ? String(staffName).trim() : 'Staff';
+            if (!appData.history) appData.history = [];
+            appData.history.unshift({
+              timestamp, itemId: change.item.id, itemName: change.item.name,
+              previousCount: change.previousCount, newCount: change.item.currentCount,
+              staffName: change.item.countedBy, action: 'room_supply_deduction',
+              batchId, quantityUsed: change.qty, rooms: reviewed
+            });
+          }
+          appData.housekeeping.processedBatches.push(batchId);
+          appData.housekeeping.deductions.unshift({ batchId, timestamp, rooms: reviewed, totals, staffName: staffName || 'Staff' });
+          appData.housekeeping.processedBatches = appData.housekeeping.processedBatches.slice(-500);
+          appData.housekeeping.deductions = appData.housekeeping.deductions.slice(0, 200);
+          saveData(appData);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, rooms: reviewed, totals, items: appData.items }));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: "Endpoint not found" }));
     return;
