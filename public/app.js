@@ -846,5 +846,75 @@
     return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
+
+  // Rooming sheet OCR and reviewed stock deduction
+  const roomImageInput = document.getElementById('roomSheetImage');
+  const roomPreview = document.getElementById('roomSheetPreview');
+  const roomOcrStatus = document.getElementById('roomOcrStatus');
+  const roomReview = document.getElementById('roomOcrReview');
+  const roomOcrBtn = document.getElementById('runRoomOcrBtn');
+  const confirmRoomBtn = document.getElementById('confirmRoomDeductionBtn');
+  let ocrRows = [];
+  if (roomImageInput) roomImageInput.addEventListener('change', () => {
+    const file = roomImageInput.files && roomImageInput.files[0];
+    if (!file) return;
+    roomPreview.src = URL.createObjectURL(file);
+    roomPreview.style.display = 'block';
+    roomReview.innerHTML = '';
+    confirmRoomBtn.disabled = true;
+    ocrRows = [];
+    roomOcrStatus.textContent = 'Image ready. Tap Read Image (OCR).';
+  });
+  function renderOcrRows() {
+    const opts = ['CK OUT','STAY','STAY BACK','CK IN','NOT CLEAR'];
+    roomReview.innerHTML = '<h3 style="margin:14px 0 8px;">Review extracted rooms</h3>' +
+      ocrRows.map((r,i) => '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;padding:10px;background:#131e2c;border:1px solid #1d2c3e;border-radius:8px;">' +
+      '<label>Room <input data-ocr-room="'+i+'" value="'+escapeHtml(r.roomNumber)+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;"></label>' +
+      '<label>Status <select data-ocr-status="'+i+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">'+opts.map(o=>'<option '+(r.status===o?'selected':'')+'>'+o+'</option>').join('')+'</select></label></div>').join('');
+    roomReview.querySelectorAll('[data-ocr-room]').forEach(el=>el.addEventListener('input',()=>{ocrRows[Number(el.dataset.ocrRoom)].roomNumber=el.value.trim();}));
+    roomReview.querySelectorAll('[data-ocr-status]').forEach(el=>el.addEventListener('change',()=>{ocrRows[Number(el.dataset.ocrStatus)].status=el.value;}));
+    confirmRoomBtn.disabled = !ocrRows.length || ocrRows.some(r=>r.status==='NOT CLEAR'||!r.roomNumber);
+  }
+  if (roomOcrBtn) roomOcrBtn.addEventListener('click', async () => {
+    const file=roomImageInput.files && roomImageInput.files[0];
+    if(!file){roomOcrStatus.textContent='Please select a rooming-sheet image.';return;}
+    if(!window.Tesseract){roomOcrStatus.textContent='OCR library did not load. Check internet and try again.';return;}
+    roomOcrBtn.disabled=true; roomOcrStatus.textContent='Reading image… please wait.';
+    try{
+      const result=await Tesseract.recognize(file,'eng');
+      const lines=result.data.text.split(/\n/).map(x=>x.trim()).filter(Boolean);
+      const validRooms=new Set(['101','102','103','104','105','106','107','108','109','110','111','112','114','115','116','117','118','119','120','121','122','123','124','125','126','127','128','129','131','132','133','134','135','136','A1','A2','TREEHOUSE','CLUBVILLA','D1','D2']);
+      const found=[];
+      for(const line of lines){
+        const upper=line.toUpperCase();
+        const matches=[...upper.matchAll(/\b(101|102|103|104|105|106|107|108|109|110|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREEHOUSE|CLUBVILLA)\b/g)];
+        for(const m of matches){
+          const status= /STAY\s*BACK/.test(upper)?'STAY BACK': /CK\s*OUT|CHECK\s*OUT/.test(upper)?'CK OUT': /\bSTAY\b/.test(upper)?'STAY': /CK\s*IN|CHECK\s*IN/.test(upper)?'CK IN':'NOT CLEAR';
+          found.push({roomNumber:m[1]==='TREEHOUSE'?'Treehouse':m[1]==='CLUBVILLA'?'Clubvilla':m[1],status});
+        }
+      }
+      const seen=new Set(); ocrRows=found.filter(r=>{const k=r.roomNumber.toUpperCase();if(seen.has(k))return false;seen.add(k);return true;});
+      roomOcrStatus.textContent=ocrRows.length?('OCR found '+ocrRows.length+' room entries. NOT CLEAR means manual review is required.'):'No rooms could be confidently identified. Please check the image or enter rooms manually.';
+      renderOcrRows();
+    }catch(e){roomOcrStatus.textContent='OCR failed: '+e.message;}
+    finally{roomOcrBtn.disabled=false;}
+  });
+  if(confirmRoomBtn) confirmRoomBtn.addEventListener('click',async()=>{
+    if(!ocrRows.length||ocrRows.some(r=>r.status==='NOT CLEAR'||!r.roomNumber)){alert('Resolve every NOT CLEAR row before confirming.');return;}
+    const eligible=ocrRows.filter(r=>r.status==='CK OUT'||r.status==='STAY BACK');
+    if(!eligible.length){alert('No CK OUT or STAY BACK rooms to process.');return;}
+    if(!confirm('Confirm supply deduction for '+eligible.length+' rooms?'))return;
+    confirmRoomBtn.disabled=true;
+    try{
+      const batchId='ocr-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+      const res=await fetch('/api/housekeeping/deduct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId,rooms:eligible,staffName:document.getElementById('roomOcrStaff').value})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||'Deduction failed');
+      roomOcrStatus.textContent='Stock updated successfully. Rooms processed: '+data.rooms.join(', ');
+      roomReview.innerHTML='<p style="color:#34d399;margin-top:12px;">Deduction complete. '+JSON.stringify(data.totals)+'</p>';
+      await loadFromServer();
+    }catch(e){roomOcrStatus.textContent='Not deducted: '+e.message;confirmRoomBtn.disabled=false;}
+  });
+
   init();
 })();
