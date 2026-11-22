@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -79,6 +80,8 @@ const mimeTypes = {
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon'
 };
@@ -101,6 +104,55 @@ const server = http.createServer((req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+
+
+    // POST /api/item-photo - save a stock photo against an inventory item
+    if (pathname === '/api/item-photo' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 8 * 1024 * 1024) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const id = payload.id;
+          const dataUrl = payload.dataUrl || '';
+          appData = loadData();
+          const item = appData.items.find(entry => entry.id === id);
+          if (!item) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Stock item not found.' }));
+            return;
+          }
+          const match = /^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+          if (!match) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Please upload a JPG, PNG, or WEBP image.' }));
+            return;
+          }
+          const buffer = Buffer.from(match[2], 'base64');
+          if (!buffer.length || buffer.length > 5 * 1024 * 1024) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Image must be 5 MB or smaller.' }));
+            return;
+          }
+          const uploadDir = path.join(PUBLIC_DIR, 'uploads');
+          fs.mkdirSync(uploadDir, { recursive: true });
+          const extension = match[1] === 'jpg' ? 'jpg' : match[1];
+          const fileName = String(id).replace(/[^a-zA-Z0-9_-]/g, '') + '-' + crypto.randomBytes(8).toString('hex') + '.' + extension;
+          fs.writeFileSync(path.join(uploadDir, fileName), buffer);
+          item.photoUrl = '/uploads/' + fileName;
+          saveData(appData);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, photoUrl: item.photoUrl }));
+        } catch (error) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Image upload failed. Please try again.' }));
+        }
+      });
+      return;
+    }
 
     // GET /api/data
     if (pathname === '/api/data' && req.method === 'GET') {
