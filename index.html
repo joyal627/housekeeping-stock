@@ -1174,9 +1174,9 @@
                       <button type="button" class="btn-save" id="save-btn-${item.id}" data-id="${item.id}">Save count</button>
                       <button type="button" class="btn-reset" data-id="${item.id}">Reset</button>
                       <button type="button" class="btn-secondary-sm ocr-photo-btn" data-id="${item.id}">OCR Photo</button>
-                      <input type="file" accept="image/*" capture="environment" class="ocr-file-input" id="ocr-photo-${item.id}" data-id="${item.id}" hidden />
+                      <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" class="ocr-file-input" id="ocr-photo-${item.id}" data-id="${item.id}" hidden />
                       <button type="button" class="btn-secondary-sm upload-photo-btn" data-id="${item.id}">Upload Image</button>
-                      <input type="file" accept="image/*" class="upload-file-input" id="upload-photo-${item.id}" data-id="${item.id}" hidden />
+                      <input type="file" accept="image/jpeg,image/png,image/webp" class="upload-file-input" id="upload-photo-${item.id}" data-id="${item.id}" hidden />
                       <span class="photo-status" id="photo-status-${item.id}" style="font-size:12px;color:#8e9fad;">${item.photoUrl ? '<a href="' + escapeHtml(item.photoUrl) + '" target="_blank" rel="noopener" style="color:#38bdf8;">View uploaded photo</a>' : ''}</span>
                     </div>
                   </div>
