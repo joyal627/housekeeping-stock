@@ -916,15 +916,35 @@
     if(!eligible.length){alert('No CK OUT or STAY BACK rooms to process.');return;}
     if(!confirm('Confirm supply deduction for '+eligible.length+' rooms?'))return;
     confirmRoomBtn.disabled=true;
+    confirmRoomBtn.textContent='Processing…';
+    roomOcrStatus.textContent='Checking stock and processing deduction…';
     try{
       const batchId='ocr-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
       const res=await fetch('/api/housekeeping/deduct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId,rooms:eligible,staffName:document.getElementById('roomOcrStaff').value})});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'Deduction failed');
-      roomOcrStatus.textContent='Stock updated successfully. Rooms processed: '+data.rooms.join(', ');
-      roomReview.innerHTML='<p style="color:#34d399;margin-top:12px;">Deduction complete. '+JSON.stringify(data.totals)+'</p>';
-      await loadFromServer();
-    }catch(e){roomOcrStatus.textContent='Not deducted: '+e.message;confirmRoomBtn.disabled=false;}
+
+      // Apply the server-confirmed counts immediately so every stock display refreshes.
+      if(Array.isArray(data.items)){
+        state.items=data.items;
+        updateExistingDOM();
+      } else {
+        await loadFromServer();
+      }
+
+      const itemNames=Object.keys(data.totals||{}).map(id=>{
+        const item=state.items.find(entry=>entry.id===id);
+        return (item?item.name:id)+': -'+data.totals[id];
+      });
+      roomOcrStatus.textContent='SUCCESS: Stock deducted for '+data.rooms.length+' rooms. Stock count has been updated.';
+      roomReview.innerHTML='<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>Deduction completed</strong><p>Rooms: '+escapeHtml(data.rooms.join(', '))+'</p><p>'+itemNames.map(escapeHtml).join('<br>')+'</p></div>';
+      confirmRoomBtn.textContent='Deducted ✓';
+    }catch(e){
+      roomOcrStatus.textContent='DEDUCTION FAILED: '+e.message;
+      confirmRoomBtn.disabled=false;
+      confirmRoomBtn.textContent='Confirm & Deduct Stock';
+      alert('Stock was NOT deducted.\n\n'+e.message+'\n\nPlease check and save the required stock counts, then try again.');
+    }
   });
 
   init();
