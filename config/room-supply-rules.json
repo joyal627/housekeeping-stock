@@ -182,6 +182,11 @@
       "soap": 20,
       "shampoo": 10,
       "moisturiser": 10
+    },
+    "stayBack": {
+      "soap": 2,
+      "shampoo": 1,
+      "moisturiser": 1
     }
   },
   "issuePolicy": {
