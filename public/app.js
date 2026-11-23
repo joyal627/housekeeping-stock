@@ -895,20 +895,48 @@
     try{
       const result=await Tesseract.recognize(file,'eng');
       const lines=result.data.text.split(/\n/).map(x=>x.trim()).filter(Boolean);
-      const validRooms=new Set(['101','102','103','104','105','106','107','108','109','110','111','112','114','115','116','117','118','119','120','121','122','123','124','125','126','127','128','129','131','132','133','134','135','136','A1','A2','TREEHOUSE','CLUBVILLA','D1','D2']);
+      const validRooms=new Set(['101','102','103','104','105','106','107','108','109','110','111','112','114','115','116','117','118','119','120','121','122','123','124','125','126','127','128','129','131','132','133','134','135','136','A1','A2','D1','D2','TREEHOUSE','CLUBVILLA']);
+      const roomToken='(?:101|102|103|104|105|106|107|108|109|110|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREE\\s*HOUSE|TREEHOUSE|CLUB\\s*VILLA|CLUBVILLA)';
+      const roomPattern=new RegExp('\\b'+roomToken+'(?:\\s*[-–/]\\s*'+roomToken+')*','gi');
+      const parseRoomGroup=(raw)=>{
+        const result=[];
+        raw.toUpperCase().replace(/TREE\\s*HOUSE/g,'TREEHOUSE').replace(/CLUB\\s*VILLA/g,'CLUBVILLA').split('/').forEach(part=>{
+          const p=part.trim();
+          const range=p.match(/^([A-Z]?\\d+)\\s*[-–]\\s*([A-Z]?\\d+)$/);
+          if(range && /^\\d+$/.test(range[1]) && /^\\d+$/.test(range[2])){
+            const a=Number(range[1]),b=Number(range[2]),step=a<=b?1:-1;
+            for(let n=a;n!==b+step;n+=step){const v=String(n);if(validRooms.has(v))result.push(v);}
+          } else if(range && range[1].startsWith('A') && range[2].startsWith('A')) {
+            ['A1','A2'].forEach(v=>{if(validRooms.has(v))result.push(v);});
+          } else if(range && range[1].startsWith('D') && range[2].startsWith('D')) {
+            ['D1','D2'].forEach(v=>{if(validRooms.has(v))result.push(v);});
+          } else if(validRooms.has(p)) result.push(p);
+        });
+        return [...new Set(result)];
+      };
+      const timePattern=/\\b(\\d{1,2})(?:[:.](\\d{2})\\s*(AM|PM)?|(\\s*)(AM|PM))\\b/i;
       const found=[];
-      for(const line of lines){
-        const upper=line.toUpperCase();
-        const matches=[...upper.matchAll(/\b(101|102|103|104|105|106|107|108|109|110|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREEHOUSE|CLUBVILLA)\b/g)];
-        for(const m of matches){
-          const timeMatch = upper.match(/\b(\d{1,2})(?:[:.](\d{2})\s*(AM|PM)?|(\s*)(AM|PM))\b/);
-          // ETA contains only a time => treat it as Check-in. An explicit "Checkout 12:30 PM" is not an ETA.
-          const isCheckoutTime = /CHECK\s*OUT\s*[:=-]?\s*\d{1,2}(?:[:.]\d{2})?\s*(?:AM|PM)?/.test(upper) || /CHECKOUT\s*\d{1,2}/.test(upper);
-          const arrivalTime = timeMatch && !isCheckoutTime ? (timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') + ((timeMatch[3] || timeMatch[5]) ? ' ' + (timeMatch[3] || timeMatch[5]) : '')) : '';
-          const status = /STAY\s*BACK/.test(upper) ? 'STAY BACK' :
-            (arrivalTime ? 'CK IN' : (/CK\s*OUT|CHECK\s*OUT/.test(upper) ? 'CK OUT' : (/\bSTAY\b/.test(upper) ? 'STAY' : (/CK\s*IN|CHECK\s*IN/.test(upper) ? 'CK IN' : 'NOT CLEAR'))));
-          found.push({roomNumber:m[1]==='TREEHOUSE'?'Treehouse':m[1]==='CLUBVILLA'?'Clubvilla':m[1],status,arrivalTime});
+      for(let index=0;index<lines.length;index++){
+        const upper=lines[index].toUpperCase();
+        const roomMatches=[...upper.matchAll(new RegExp(roomPattern.source,'gi'))];
+        if(!roomMatches.length) continue;
+        // Rooming-sheet rows can wrap across OCR lines. Collect the ETA/time
+        // and status until the next room-number row, not from the room line alone.
+        let rowText=lines[index];
+        for(let j=index+1;j<Math.min(lines.length,index+4);j++){
+          if(new RegExp(roomPattern.source,'i').test(lines[j].toUpperCase())) break;
+          rowText+=' '+lines[j];
         }
+        const rowUpper=rowText.toUpperCase();
+        const timeMatch=rowUpper.match(timePattern);
+        const isCheckoutTime=/CHECK\\s*OUT\\s*[:=-]?\\s*\\d{1,2}(?:[:.]\\d{2})?\\s*(?:AM|PM)?/.test(rowUpper)||/CHECKOUT\\s*\\d{1,2}/.test(rowUpper);
+        const arrivalTime=timeMatch&&!isCheckoutTime?(timeMatch[1]+(timeMatch[2]?':'+timeMatch[2]:'')+((timeMatch[3]||timeMatch[5])?' '+(timeMatch[3]||timeMatch[5]):'')):'';
+        const status=/STAY\\s*BACK/.test(rowUpper)?'STAY BACK':(arrivalTime?'CK IN':(/CK\\s*OUT|CHECK\\s*OUT/.test(rowUpper)?'CK OUT':(/\\bSTAY\\b/.test(rowUpper)?'STAY':(/CK\\s*IN|CHECK\\s*IN/.test(rowUpper)?'CK IN':'NOT CLEAR'))));
+        roomMatches.forEach(match=>{
+          parseRoomGroup(match[0]).forEach(roomNumber=>{
+            found.push({roomNumber:roomNumber==='TREEHOUSE'?'Treehouse':roomNumber==='CLUBVILLA'?'Clubvilla':roomNumber,status,arrivalTime});
+          });
+        });
       }
       const byRoom=new Map();
       found.forEach(r=>{
