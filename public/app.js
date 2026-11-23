@@ -957,119 +957,56 @@
   }
 
   if (roomOcrBtn) roomOcrBtn.addEventListener('click', async () => {
-    const file = roomImageInput.selectedRoomFile || (roomImageInput.files && roomImageInput.files[0]);
+    const file = roomImageInput.selectedRoomFile || (roomImageInput.files && roomImageInput.files[0]) ||
+      (roomGalleryInput && roomGalleryInput.files && roomGalleryInput.files[0]);
     if (!file) {
       roomOcrStatus.textContent = 'Please select a rooming-sheet image.';
       return;
     }
-    if (!window.Tesseract) {
-      roomOcrStatus.textContent = 'OCR library did not load. Check internet and try again.';
+    if (!file.type || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      roomOcrStatus.textContent = 'Please upload a JPG, PNG, or WEBP image.';
+      return;
+    }
+    if (file.size > 7 * 1024 * 1024) {
+      roomOcrStatus.textContent = 'Image is too large. Please upload an image under 7 MB.';
       return;
     }
     roomOcrBtn.disabled = true;
-    roomOcrStatus.textContent = 'Reading image… please wait.';
+    roomOcrStatus.textContent = 'Gemini AI is reading the rooming sheet image…';
     try {
-      // Convert the selected mobile image to a data URL before OCR.
-      // This avoids Tesseract.js FileLoader Code=0 errors on some Android camera/gallery files.
-      if (!file || !file.size) throw new Error('Selected image is empty. Please choose the image again.');
-      if (!file.type || !file.type.startsWith('image/')) throw new Error('Selected file is not a supported image.');
-      const imageDataUrl = await new Promise((resolve, reject) => {
+      const dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Browser could not read this image. Try JPG or PNG.'));
-        reader.onabort = () => reject(new Error('Image reading was cancelled. Please try again.'));
+        reader.onerror = () => reject(new Error('Could not read the selected image. Please choose it again.'));
         reader.readAsDataURL(file);
       });
-      if (typeof imageDataUrl !== 'string' || !imageDataUrl.startsWith('data:image/')) {
-        throw new Error('Image could not be converted. Please upload a JPG or PNG image.');
-      }
-      const result = await Tesseract.recognize(imageDataUrl, 'eng');
-      const lines = result.data.text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-      const found = [];
-
-      for (let index = 0; index < lines.length; index++) {
-        const line = lines[index];
-        const normalizedLine = line.toUpperCase()
-          .replace(/\bAT\s*[-–/]\s*AZ\b/g, 'A1-A2')
-          .replace(/\bAI\s*[-–/]\s*A2\b/g, 'A1-A2')
-          .replace(/\bA1\s*[-–/]\s*AZ\b/g, 'A1-A2');
-        const matches = [...normalizedLine.matchAll(new RegExp(roomGroupPattern.source, 'gi'))];
-        if (!matches.length) continue;
-
-        matches.forEach(match => {
-          const roomNumbers = expandRoomGroup(match[0]);
-          if (!roomNumbers.length) return;
-
-          // ROOMS is the numeric column immediately before Room Num.
-          // Only accept a count when a standalone number directly precedes
-          // the room-list cell; Adult/Kid/meal counts occur after Room Num.
-          const prefix = line.slice(Math.max(0, match.index - 40), match.index);
-          const suffix = line.slice(match.index + match[0].length, match.index + match[0].length + 40);
-          // ROOMS may be printed immediately before the room list or as "2 rooms" after it.
-          const prefixCount = prefix.match(/(?:^|[\s_|])(\d{1,2})[\s_|]*$/);
-          const suffixCount = suffix.match(/^\s*(\d{1,2})\s*(?:ROOMS?|RM)\b/i);
-          const expectedRoomCount = suffixCount ? Number(suffixCount[1]) : prefixCount ? Number(prefixCount[1]) : null;
-
-          // OCR can split a row into multiple lines. Read the ETA/status only
-          // from the same row continuation, stopping at the next room group.
-          let rowText = line;
-          for (let j = index + 1; j < Math.min(lines.length, index + 4); j++) {
-            if (new RegExp(roomGroupPattern.source, 'i').test(lines[j])) break;
-            rowText += ' ' + lines[j];
-          }
-          const rowUpper = rowText.toUpperCase();
-          const checkoutTime = /CHECK\s*OUT\s*[:=-]?\s*\d{1,2}(?:[:.]\d{2})?\s*(?:AM|PM)?/.test(rowUpper) ||
-            /CHECKOUT\s*\d{1,2}/.test(rowUpper);
-          const timeMatch = rowUpper.match(/\b(\d{1,2})(?:[:.](\d{2})\s*(AM|PM)?|[.]?\s*(AM|PM))\b/i);
-          const arrivalTime = timeMatch && !checkoutTime
-            ? timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') +
-              ((timeMatch[3] || timeMatch[4]) ? ' ' + (timeMatch[3] || timeMatch[4]) : '')
-            : '';
-          const status = /STAY\s*BACK/.test(rowUpper) ? 'STAY BACK' :
-            arrivalTime ? 'CK IN' :
-            /CK\s*OUT|CHECK\s*OUT/.test(rowUpper) ? 'CK OUT' :
-            /\bSTAY\b/.test(rowUpper) ? 'STAY' :
-            /CK\s*IN|CHECK\s*IN/.test(rowUpper) ? 'CK IN' : 'NOT CLEAR';
-
-          const expected = Number.isInteger(expectedRoomCount) ? expectedRoomCount : null;
-          found.push({
-            roomNumber: roomNumbers.join('/'),
-            roomNumbers,
-            expectedRoomCount: expected,
-            expandedRoomCount: roomNumbers.length,
-            countMismatch: expected !== null && expected !== roomNumbers.length,
-            status,
-            arrivalTime
-          });
-        });
-      }
-
-      // Merge duplicate OCR detections without duplicating a room in stock deduction.
-      const byRoom = new Map();
-      found.forEach(row => {
-        row.roomNumbers.forEach(roomNumber => {
-          const key = roomNumber.toUpperCase();
-          if (!byRoom.has(key)) {
-            byRoom.set(key, {
-              roomNumber,
-              expectedRoomCount: null,
-              expandedRoomCount: 1,
-              countMismatch: false,
-              status: row.status,
-              arrivalTime: row.arrivalTime
-            });
-          } else {
-            const existing = byRoom.get(key);
-            if (existing.status === 'NOT CLEAR' && row.status !== 'NOT CLEAR') existing.status = row.status;
-            if (!existing.arrivalTime && row.arrivalTime) existing.arrivalTime = row.arrivalTime;
-          }
-        });
+      const imageBase64 = String(dataUrl).split(',')[1] || '';
+      if (!imageBase64) throw new Error('Image data is empty. Please upload again.');
+      const response = await fetch('/api/housekeeping/ai-read-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, mimeType: file.type })
       });
-
-      // Keep grouped rows for count verification and review, while removing
-      // rooms that appear again in another OCR row from the final batch.
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Gemini could not read the image.');
+      const allowed = ['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR'];
+      ocrRows = (data.rows || []).map(row => {
+        const roomNumbers = expandRoomGroup(String(row.roomNumber || ''));
+        const expected = Number.isInteger(row.expectedRoomCount) ? row.expectedRoomCount : null;
+        const uniqueRooms = [...new Set(roomNumbers)];
+        return {
+          roomNumber: uniqueRooms.join('/'),
+          roomNumbers: uniqueRooms,
+          expectedRoomCount: expected,
+          expandedRoomCount: uniqueRooms.length,
+          countMismatch: expected !== null && expected !== uniqueRooms.length,
+          status: allowed.includes(row.status) ? row.status : 'NOT CLEAR',
+          arrivalTime: row.arrivalTime || '',
+          confidence: Number(row.confidence) || 0
+        };
+      }).filter(row => row.roomNumbers.length);
       const seenRooms = new Set();
-      ocrRows = found.map(row => {
+      ocrRows = ocrRows.map(row => {
         const uniqueRooms = row.roomNumbers.filter(room => {
           const key = room.toUpperCase();
           if (seenRooms.has(key)) return false;
@@ -1084,43 +1021,16 @@
           countMismatch: Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== uniqueRooms.length
         };
       }).filter(row => row.roomNumbers.length);
-
-      roomAiNote = '';
-      if (ocrRows.length) {
-        roomOcrStatus.textContent = 'OCR complete. Gemini AI is checking status and ETA…';
-        try {
-          const aiResponse = await fetch('/api/housekeeping/ai-review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rawText: result.data.text, rows: ocrRows })
-          });
-          const aiData = await aiResponse.json();
-          if (!aiResponse.ok) throw new Error(aiData.error || 'AI review unavailable');
-          let applied = 0;
-          (aiData.suggestions || []).forEach(suggestion => {
-            const row = ocrRows[suggestion.index];
-            if (!row || suggestion.confidence < 0.75) return;
-            const allowed = ['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR'];
-            if (!allowed.includes(suggestion.status)) return;
-            row.status = suggestion.status;
-            row.arrivalTime = suggestion.status === 'CK IN' ? (suggestion.arrivalTime || '') : '';
-            applied++;
-          });
-          roomAiNote = 'Gemini AI reviewed the OCR status/ETA (' + applied +
-            ' suggestions applied). Please verify every row before confirming deduction.';
-        } catch (aiError) {
-          roomAiNote = 'Gemini AI review unavailable: ' + aiError.message +
-            '. You can still review the OCR manually; stock deduction rules are unchanged.';
-        }
-      }
-
+      roomAiNote = 'Read directly by Gemini AI (no Tesseract OCR). Check every room, status, ETA and ROOMS count before deduction.';
       roomOcrStatus.textContent = ocrRows.length
-        ? 'OCR found ' + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) +
-          ' unique room entries. Check each ROOMS count before confirming.'
-        : 'No rooms could be confidently identified. Please check the image or enter rooms manually.';
+        ? 'Gemini AI found ' + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) + ' unique room entries. Review before confirming.'
+        : 'Gemini AI could not identify room rows. Please upload a clearer rooming sheet.';
       renderOcrRows();
     } catch (e) {
-      roomOcrStatus.textContent = 'OCR failed: ' + e.message;
+      roomOcrStatus.textContent = 'Gemini AI image reading failed: ' + e.message;
+      roomReview.innerHTML = '';
+      ocrRows = [];
+      confirmRoomBtn.disabled = true;
     } finally {
       roomOcrBtn.disabled = false;
     }
