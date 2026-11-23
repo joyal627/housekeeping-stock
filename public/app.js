@@ -857,6 +857,7 @@
   const roomOcrBtn = document.getElementById('runRoomOcrBtn');
   const confirmRoomBtn = document.getElementById('confirmRoomDeductionBtn');
   let ocrRows = [];
+  let roomAiNote = '';
   const roomGalleryInput = document.getElementById('roomSheetGalleryImage');
   const roomCameraBtn = document.getElementById('roomOcrCameraBtn');
   const roomUploadBtn = document.getElementById('roomOcrUploadBtn');
@@ -918,7 +919,7 @@
 
   function renderOcrRows() {
     const opts = ['CK OUT','STAY','STAY BACK','CK IN','NOT CLEAR'];
-    roomReview.innerHTML = '<h3 style="margin:14px 0 8px;">Review extracted rooms</h3>' +
+    roomReview.innerHTML = '<h3 style="margin:14px 0 8px;">Review extracted rooms</h3>' + (roomAiNote ? '<p style="padding:9px;border:1px solid #2563eb;border-radius:7px;color:#bfdbfe;">' + escapeHtml(roomAiNote) + '</p>' : '') +
       ocrRows.map((r,i) => {
         const countText = Number.isInteger(r.expectedRoomCount)
           ? 'ROOMS column: ' + r.expectedRoomCount + ' | Detected: ' + r.expandedRoomCount + ' ' +
@@ -1069,6 +1070,35 @@
           countMismatch: Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== uniqueRooms.length
         };
       }).filter(row => row.roomNumbers.length);
+
+      roomAiNote = '';
+      if (ocrRows.length) {
+        roomOcrStatus.textContent = 'OCR complete. Gemini AI is checking status and ETA…';
+        try {
+          const aiResponse = await fetch('/api/housekeeping/ai-review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rawText: result.data.text, rows: ocrRows })
+          });
+          const aiData = await aiResponse.json();
+          if (!aiResponse.ok) throw new Error(aiData.error || 'AI review unavailable');
+          let applied = 0;
+          (aiData.suggestions || []).forEach(suggestion => {
+            const row = ocrRows[suggestion.index];
+            if (!row || suggestion.confidence < 0.75) return;
+            const allowed = ['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR'];
+            if (!allowed.includes(suggestion.status)) return;
+            row.status = suggestion.status;
+            row.arrivalTime = suggestion.status === 'CK IN' ? (suggestion.arrivalTime || '') : '';
+            applied++;
+          });
+          roomAiNote = 'Gemini AI reviewed the OCR status/ETA (' + applied +
+            ' suggestions applied). Please verify every row before confirming deduction.';
+        } catch (aiError) {
+          roomAiNote = 'Gemini AI review unavailable: ' + aiError.message +
+            '. You can still review the OCR manually; stock deduction rules are unchanged.';
+        }
+      }
 
       roomOcrStatus.textContent = ocrRows.length
         ? 'OCR found ' + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) +
