@@ -879,11 +879,13 @@
   function renderOcrRows() {
     const opts = ['CK OUT','STAY','STAY BACK','CK IN','NOT CLEAR'];
     roomReview.innerHTML = '<h3 style="margin:14px 0 8px;">Review extracted rooms</h3>' +
-      ocrRows.map((r,i) => '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;padding:10px;background:#131e2c;border:1px solid #1d2c3e;border-radius:8px;">' +
+      ocrRows.map((r,i) => '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0;padding:10px;background:#131e2c;border:1px solid #1d2c3e;border-radius:8px;">' +
       '<label>Room <input data-ocr-room="'+i+'" value="'+escapeHtml(r.roomNumber)+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;"></label>' +
-      '<label>Status <select data-ocr-status="'+i+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">'+opts.map(o=>'<option '+(r.status===o?'selected':'')+'>'+o+'</option>').join('')+'</select></label></div>').join('');
+      '<label>Status <select data-ocr-status="'+i+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">'+opts.map(o=>'<option '+(r.status===o?'selected':'')+'>'+o+'</option>').join('')+'</select></label>' +
+      '<label>Arrival / Check-in time <input type="text" data-ocr-arrival="'+i+'" value="'+escapeHtml(r.arrivalTime||'')+'" placeholder="e.g. 2:30 PM" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;"></label></div>').join('');
     roomReview.querySelectorAll('[data-ocr-room]').forEach(el=>el.addEventListener('input',()=>{ocrRows[Number(el.dataset.ocrRoom)].roomNumber=el.value.trim();}));
     roomReview.querySelectorAll('[data-ocr-status]').forEach(el=>el.addEventListener('change',()=>{ocrRows[Number(el.dataset.ocrStatus)].status=el.value;}));
+    roomReview.querySelectorAll('[data-ocr-arrival]').forEach(el=>el.addEventListener('input',()=>{ocrRows[Number(el.dataset.ocrArrival)].arrivalTime=el.value.trim();}));
     confirmRoomBtn.disabled = !ocrRows.length || ocrRows.some(r=>r.status==='NOT CLEAR'||!r.roomNumber);
   }
   if (roomOcrBtn) roomOcrBtn.addEventListener('click', async () => {
@@ -901,10 +903,23 @@
         const matches=[...upper.matchAll(/\b(101|102|103|104|105|106|107|108|109|110|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREEHOUSE|CLUBVILLA)\b/g)];
         for(const m of matches){
           const status= /STAY\s*BACK/.test(upper)?'STAY BACK': /CK\s*OUT|CHECK\s*OUT/.test(upper)?'CK OUT': /\bSTAY\b/.test(upper)?'STAY': /CK\s*IN|CHECK\s*IN/.test(upper)?'CK IN':'NOT CLEAR';
-          found.push({roomNumber:m[1]==='TREEHOUSE'?'Treehouse':m[1]==='CLUBVILLA'?'Clubvilla':m[1],status});
+          // Arrival time is the expected check-in time; it is not a confirmed CK IN status.
+          const timeMatch = upper.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(AM|PM)?\b/);
+          const arrivalTime = timeMatch ? (timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') + (timeMatch[3] ? ' ' + timeMatch[3] : '')) : '';
+          found.push({roomNumber:m[1]==='TREEHOUSE'?'Treehouse':m[1]==='CLUBVILLA'?'Clubvilla':m[1],status,arrivalTime});
         }
       }
-      const seen=new Set(); ocrRows=found.filter(r=>{const k=r.roomNumber.toUpperCase();if(seen.has(k))return false;seen.add(k);return true;});
+      const byRoom=new Map();
+      found.forEach(r=>{
+        const k=r.roomNumber.toUpperCase();
+        if(!byRoom.has(k)) byRoom.set(k,r);
+        else {
+          const existing=byRoom.get(k);
+          if(existing.status==='NOT CLEAR' && r.status!=='NOT CLEAR') existing.status=r.status;
+          if(!existing.arrivalTime && r.arrivalTime) existing.arrivalTime=r.arrivalTime;
+        }
+      });
+      ocrRows=[...byRoom.values()];
       roomOcrStatus.textContent=ocrRows.length?('OCR found '+ocrRows.length+' room entries. NOT CLEAR means manual review is required.'):'No rooms could be confidently identified. Please check the image or enter rooms manually.';
       renderOcrRows();
     }catch(e){roomOcrStatus.textContent='OCR failed: '+e.message;}
