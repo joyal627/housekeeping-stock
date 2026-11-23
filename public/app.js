@@ -882,10 +882,9 @@
       ocrRows.map((r,i) => '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0;padding:10px;background:#131e2c;border:1px solid #1d2c3e;border-radius:8px;">' +
       '<label>Room <input data-ocr-room="'+i+'" value="'+escapeHtml(r.roomNumber)+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;"></label>' +
       '<label>Status <select data-ocr-status="'+i+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">'+opts.map(o=>'<option '+(r.status===o?'selected':'')+'>'+o+'</option>').join('')+'</select></label>' +
-      '<label>Arrival / Check-in time <input type="text" data-ocr-arrival="'+i+'" value="'+escapeHtml(r.arrivalTime||'')+'" placeholder="e.g. 2:30 PM" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;"></label></div>').join('');
+      '<div style="padding:8px;color:#cbd5e1;">ETA / Check-in: <strong>'+escapeHtml(r.arrivalTime||'No time found')+'</strong></div></div>').join('');
     roomReview.querySelectorAll('[data-ocr-room]').forEach(el=>el.addEventListener('input',()=>{ocrRows[Number(el.dataset.ocrRoom)].roomNumber=el.value.trim();}));
     roomReview.querySelectorAll('[data-ocr-status]').forEach(el=>el.addEventListener('change',()=>{ocrRows[Number(el.dataset.ocrStatus)].status=el.value;}));
-    roomReview.querySelectorAll('[data-ocr-arrival]').forEach(el=>el.addEventListener('input',()=>{ocrRows[Number(el.dataset.ocrArrival)].arrivalTime=el.value.trim();}));
     confirmRoomBtn.disabled = !ocrRows.length || ocrRows.some(r=>r.status==='NOT CLEAR'||!r.roomNumber);
   }
   if (roomOcrBtn) roomOcrBtn.addEventListener('click', async () => {
@@ -902,10 +901,12 @@
         const upper=line.toUpperCase();
         const matches=[...upper.matchAll(/\b(101|102|103|104|105|106|107|108|109|110|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREEHOUSE|CLUBVILLA)\b/g)];
         for(const m of matches){
-          const status= /STAY\s*BACK/.test(upper)?'STAY BACK': /CK\s*OUT|CHECK\s*OUT/.test(upper)?'CK OUT': /\bSTAY\b/.test(upper)?'STAY': /CK\s*IN|CHECK\s*IN/.test(upper)?'CK IN':'NOT CLEAR';
-          // Arrival time is the expected check-in time; it is not a confirmed CK IN status.
           const timeMatch = upper.match(/\b(\d{1,2})(?:[:.](\d{2})\s*(AM|PM)?|(\s*)(AM|PM))\b/);
-          const arrivalTime = timeMatch ? (timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') + ((timeMatch[3] || timeMatch[5]) ? ' ' + (timeMatch[3] || timeMatch[5]) : '')) : '';
+          // ETA contains only a time => treat it as Check-in. An explicit "Checkout 12:30 PM" is not an ETA.
+          const isCheckoutTime = /CHECK\s*OUT\s*[:=-]?\s*\d{1,2}(?:[:.]\d{2})?\s*(?:AM|PM)?/.test(upper) || /CHECKOUT\s*\d{1,2}/.test(upper);
+          const arrivalTime = timeMatch && !isCheckoutTime ? (timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') + ((timeMatch[3] || timeMatch[5]) ? ' ' + (timeMatch[3] || timeMatch[5]) : '')) : '';
+          const status = /STAY\s*BACK/.test(upper) ? 'STAY BACK' :
+            (arrivalTime ? 'CK IN' : (/CK\s*OUT|CHECK\s*OUT/.test(upper) ? 'CK OUT' : (/\bSTAY\b/.test(upper) ? 'STAY' : (/CK\s*IN|CHECK\s*IN/.test(upper) ? 'CK IN' : 'NOT CLEAR'))));
           found.push({roomNumber:m[1]==='TREEHOUSE'?'Treehouse':m[1]==='CLUBVILLA'?'Clubvilla':m[1],status,arrivalTime});
         }
       }
@@ -927,8 +928,8 @@
   });
   if(confirmRoomBtn) confirmRoomBtn.addEventListener('click',async()=>{
     if(!ocrRows.length||ocrRows.some(r=>r.status==='NOT CLEAR'||!r.roomNumber)){alert('Resolve every NOT CLEAR row before confirming.');return;}
-    const eligible=ocrRows.filter(r=>r.status==='CK OUT'||r.status==='STAY BACK');
-    if(!eligible.length){alert('No CK OUT or STAY BACK rooms to process.');return;}
+    const eligible=ocrRows.filter(r=>r.status==='CK OUT'||r.status==='STAY BACK'||(r.status==='CK IN'&&!!r.arrivalTime));
+    if(!eligible.length){alert('No eligible rooms found. A CK IN room must have an ETA time.');return;}
     if(!confirm('Confirm supply deduction for '+eligible.length+' rooms?'))return;
     confirmRoomBtn.disabled=true;
     confirmRoomBtn.textContent='Processing…';
@@ -955,7 +956,7 @@
       roomReview.innerHTML='<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>Deduction completed</strong><p>Rooms: '+escapeHtml(data.rooms.join(', '))+'</p><p>'+itemNames.map(escapeHtml).join('<br>')+'</p></div>';
       confirmRoomBtn.textContent='Deducted ✓';
     }catch(e){
-      roomOcrStatus.textContent='DEDUCTION FAILED: '+e.message;
+      roomOcrStatus.textContent=(/NO STOCK/i.test(e.message)?'NO STOCK: ':'DEDUCTION FAILED: ')+e.message;
       confirmRoomBtn.disabled=false;
       confirmRoomBtn.textContent='Confirm & Deduct Stock';
       alert('Stock was NOT deducted.\n\n'+e.message+'\n\nPlease check and save the required stock counts, then try again.');
