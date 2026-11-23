@@ -862,6 +862,46 @@
   const roomUploadBtn = document.getElementById('roomOcrUploadBtn');
   if (roomCameraBtn && roomImageInput) roomCameraBtn.addEventListener('click', () => roomImageInput.click());
   if (roomUploadBtn && roomGalleryInput) roomUploadBtn.addEventListener('click', () => roomGalleryInput.click());
+
+  const validRoomNumbers = new Set([
+    '101','102','103','104','105','106','107','108','109','110','111','112',
+    '114','115','116','117','118','119','120','121','122','123','124','125',
+    '126','127','128','129','131','132','133','134','135','136',
+    'A1','A2','D1','D2','TREEHOUSE','CLUBVILLA'
+  ]);
+  const roomTokenPattern = '(?:101|102|103|104|105|106|107|108|109|110|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREE\\s*HOUSE|TREEHOUSE|CLUB\\s*VILLA|CLUBVILLA)';
+  const roomGroupPattern = new RegExp('\\b' + roomTokenPattern + '(?:\\s*[-–/]\\s*' + roomTokenPattern + ')*', 'gi');
+
+  function expandRoomGroup(raw) {
+    const normalized = raw.toUpperCase()
+      .replace(/TREE\\s*HOUSE/g, 'TREEHOUSE')
+      .replace(/CLUB\\s*VILLA/g, 'CLUBVILLA')
+      .replace(/[–—]/g, '-');
+    const expanded = [];
+    normalized.split('/').forEach(part => {
+      const value = part.trim();
+      const range = value.match(/^([A-Z]?\\d+)\\s*-\\s*([A-Z]?\\d+)$/);
+      if (range && /^\\d+$/.test(range[1]) && /^\\d+$/.test(range[2])) {
+        const from = Number(range[1]);
+        const to = Number(range[2]);
+        const step = from <= to ? 1 : -1;
+        for (let n = from; n !== to + step; n += step) {
+          const room = String(n);
+          if (validRoomNumbers.has(room)) expanded.push(room);
+        }
+      } else if (range && range[1].startsWith('A') && range[2].startsWith('A')) {
+        expanded.push('A1', 'A2');
+      } else if (range && range[1].startsWith('D') && range[2].startsWith('D')) {
+        expanded.push('D1', 'D2');
+      } else if (validRoomNumbers.has(value)) {
+        expanded.push(value);
+      }
+    });
+    return [...new Set(expanded)].map(room =>
+      room === 'TREEHOUSE' ? 'Treehouse' : room === 'CLUBVILLA' ? 'Clubvilla' : room
+    );
+  }
+
   function handleRoomImageChange(input) {
     const file = input.files && input.files[0];
     if (!file) return;
@@ -871,126 +911,238 @@
     confirmRoomBtn.disabled = true;
     ocrRows = [];
     roomOcrStatus.textContent = 'Image ready. Tap Read Image (OCR).';
-    // Use the selected camera or gallery file for the existing room-sheet OCR action.
     roomImageInput.selectedRoomFile = file;
   }
   if (roomImageInput) roomImageInput.addEventListener('change', () => handleRoomImageChange(roomImageInput));
   if (roomGalleryInput) roomGalleryInput.addEventListener('change', () => handleRoomImageChange(roomGalleryInput));
+
   function renderOcrRows() {
     const opts = ['CK OUT','STAY','STAY BACK','CK IN','NOT CLEAR'];
     roomReview.innerHTML = '<h3 style="margin:14px 0 8px;">Review extracted rooms</h3>' +
-      ocrRows.map((r,i) => '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0;padding:10px;background:#131e2c;border:1px solid #1d2c3e;border-radius:8px;">' +
-      '<label>Room <input data-ocr-room="'+i+'" value="'+escapeHtml(r.roomNumber)+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;"></label>' +
-      '<label>Status <select data-ocr-status="'+i+'" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">'+opts.map(o=>'<option '+(r.status===o?'selected':'')+'>'+o+'</option>').join('')+'</select></label>' +
-      '<div style="padding:8px;color:#cbd5e1;">ETA / Check-in: <strong>'+escapeHtml(r.arrivalTime||'No time found')+'</strong></div></div>').join('');
-    roomReview.querySelectorAll('[data-ocr-room]').forEach(el=>el.addEventListener('input',()=>{ocrRows[Number(el.dataset.ocrRoom)].roomNumber=el.value.trim();}));
-    roomReview.querySelectorAll('[data-ocr-status]').forEach(el=>el.addEventListener('change',()=>{ocrRows[Number(el.dataset.ocrStatus)].status=el.value;}));
-    confirmRoomBtn.disabled = !ocrRows.length || ocrRows.some(r=>r.status==='NOT CLEAR'||!r.roomNumber);
+      ocrRows.map((r,i) => {
+        const countText = Number.isInteger(r.expectedRoomCount)
+          ? 'ROOMS column: ' + r.expectedRoomCount + ' | Detected: ' + r.expandedRoomCount + ' ' +
+            (r.expectedRoomCount === r.expandedRoomCount ? '✓ Count matches' : '⚠ COUNT MISMATCH — check room numbers')
+          : 'Detected rooms: ' + r.expandedRoomCount;
+        return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0;padding:10px;background:#131e2c;border:1px solid ' +
+          (Number.isInteger(r.expectedRoomCount) && r.expectedRoomCount !== r.expandedRoomCount ? '#b45309' : '#1d2c3e') +
+          ';border-radius:8px;">' +
+          '<label>Room(s) <input data-ocr-room="' + i + '" value="' + escapeHtml(r.roomNumber) +
+          '" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;"></label>' +
+          '<label>Status <select data-ocr-status="' + i + '" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">' +
+          opts.map(o => '<option ' + (r.status === o ? 'selected' : '') + '>' + o + '</option>').join('') +
+          '</select></label><div style="padding:8px;color:#cbd5e1;">ETA / Check-in: <strong>' +
+          escapeHtml(r.arrivalTime || 'No time found') + '</strong><br>' + escapeHtml(countText) + '</div></div>';
+      }).join('');
+    roomReview.querySelectorAll('[data-ocr-room]').forEach(el => el.addEventListener('input', () => {
+      const row = ocrRows[Number(el.dataset.ocrRoom)];
+      row.roomNumber = el.value.trim();
+      const expanded = expandRoomGroup(row.roomNumber);
+      row.expandedRoomCount = expanded.length;
+      row.countMismatch = Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== expanded.length;
+      renderOcrRows();
+    }));
+    roomReview.querySelectorAll('[data-ocr-status]').forEach(el => el.addEventListener('change', () => {
+      ocrRows[Number(el.dataset.ocrStatus)].status = el.value;
+      updateConfirmState();
+    }));
+    updateConfirmState();
   }
+
+  function updateConfirmState() {
+    confirmRoomBtn.disabled = !ocrRows.length || ocrRows.some(r =>
+      r.status === 'NOT CLEAR' || !r.roomNumber || r.countMismatch
+    );
+  }
+
   if (roomOcrBtn) roomOcrBtn.addEventListener('click', async () => {
-    const file=roomImageInput.selectedRoomFile || (roomImageInput.files && roomImageInput.files[0]);
-    if(!file){roomOcrStatus.textContent='Please select a rooming-sheet image.';return;}
-    if(!window.Tesseract){roomOcrStatus.textContent='OCR library did not load. Check internet and try again.';return;}
-    roomOcrBtn.disabled=true; roomOcrStatus.textContent='Reading image… please wait.';
-    try{
-      const result=await Tesseract.recognize(file,'eng');
-      const lines=result.data.text.split(/\n/).map(x=>x.trim()).filter(Boolean);
-      const validRooms=new Set(['101','102','103','104','105','106','107','108','109','110','111','112','114','115','116','117','118','119','120','121','122','123','124','125','126','127','128','129','131','132','133','134','135','136','A1','A2','D1','D2','TREEHOUSE','CLUBVILLA']);
-      const roomToken='(?:101|102|103|104|105|106|107|108|109|110|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREE\\s*HOUSE|TREEHOUSE|CLUB\\s*VILLA|CLUBVILLA)';
-      const roomPattern=new RegExp('\\b'+roomToken+'(?:\\s*[-–/]\\s*'+roomToken+')*','gi');
-      const parseRoomGroup=(raw)=>{
-        const result=[];
-        raw.toUpperCase().replace(/TREE\\s*HOUSE/g,'TREEHOUSE').replace(/CLUB\\s*VILLA/g,'CLUBVILLA').split('/').forEach(part=>{
-          const p=part.trim();
-          const range=p.match(/^([A-Z]?\\d+)\\s*[-–]\\s*([A-Z]?\\d+)$/);
-          if(range && /^\\d+$/.test(range[1]) && /^\\d+$/.test(range[2])){
-            const a=Number(range[1]),b=Number(range[2]),step=a<=b?1:-1;
-            for(let n=a;n!==b+step;n+=step){const v=String(n);if(validRooms.has(v))result.push(v);}
-          } else if(range && range[1].startsWith('A') && range[2].startsWith('A')) {
-            ['A1','A2'].forEach(v=>{if(validRooms.has(v))result.push(v);});
-          } else if(range && range[1].startsWith('D') && range[2].startsWith('D')) {
-            ['D1','D2'].forEach(v=>{if(validRooms.has(v))result.push(v);});
-          } else if(validRooms.has(p)) result.push(p);
-        });
-        return [...new Set(result)];
-      };
-      const timePattern=/\\b(\\d{1,2})(?:[:.](\\d{2})\\s*(AM|PM)?|(\\s*)(AM|PM))\\b/i;
-      const found=[];
-      for(let index=0;index<lines.length;index++){
-        const upper=lines[index].toUpperCase();
-        const roomMatches=[...upper.matchAll(new RegExp(roomPattern.source,'gi'))];
-        if(!roomMatches.length) continue;
-        // Rooming-sheet rows can wrap across OCR lines. Collect the ETA/time
-        // and status until the next room-number row, not from the room line alone.
-        let rowText=lines[index];
-        for(let j=index+1;j<Math.min(lines.length,index+4);j++){
-          if(new RegExp(roomPattern.source,'i').test(lines[j].toUpperCase())) break;
-          rowText+=' '+lines[j];
-        }
-        const rowUpper=rowText.toUpperCase();
-        const timeMatch=rowUpper.match(timePattern);
-        const isCheckoutTime=/CHECK\\s*OUT\\s*[:=-]?\\s*\\d{1,2}(?:[:.]\\d{2})?\\s*(?:AM|PM)?/.test(rowUpper)||/CHECKOUT\\s*\\d{1,2}/.test(rowUpper);
-        const arrivalTime=timeMatch&&!isCheckoutTime?(timeMatch[1]+(timeMatch[2]?':'+timeMatch[2]:'')+((timeMatch[3]||timeMatch[5])?' '+(timeMatch[3]||timeMatch[5]):'')):'';
-        const status=/STAY\\s*BACK/.test(rowUpper)?'STAY BACK':(arrivalTime?'CK IN':(/CK\\s*OUT|CHECK\\s*OUT/.test(rowUpper)?'CK OUT':(/\\bSTAY\\b/.test(rowUpper)?'STAY':(/CK\\s*IN|CHECK\\s*IN/.test(rowUpper)?'CK IN':'NOT CLEAR'))));
-        roomMatches.forEach(match=>{
-          parseRoomGroup(match[0]).forEach(roomNumber=>{
-            found.push({roomNumber:roomNumber==='TREEHOUSE'?'Treehouse':roomNumber==='CLUBVILLA'?'Clubvilla':roomNumber,status,arrivalTime});
+    const file = roomImageInput.selectedRoomFile || (roomImageInput.files && roomImageInput.files[0]);
+    if (!file) {
+      roomOcrStatus.textContent = 'Please select a rooming-sheet image.';
+      return;
+    }
+    if (!window.Tesseract) {
+      roomOcrStatus.textContent = 'OCR library did not load. Check internet and try again.';
+      return;
+    }
+    roomOcrBtn.disabled = true;
+    roomOcrStatus.textContent = 'Reading image… please wait.';
+    try {
+      const result = await Tesseract.recognize(file, 'eng');
+      const lines = result.data.text.split(/\\n/).map(line => line.trim()).filter(Boolean);
+      const found = [];
+
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        const matches = [...line.toUpperCase().matchAll(new RegExp(roomGroupPattern.source, 'gi'))];
+        if (!matches.length) continue;
+
+        matches.forEach(match => {
+          const roomNumbers = expandRoomGroup(match[0]);
+          if (!roomNumbers.length) return;
+
+          // ROOMS is the numeric column immediately before Room Num.
+          // Only accept a count when a standalone number directly precedes
+          // the room-list cell; Adult/Kid/meal counts occur after Room Num.
+          const prefix = line.slice(Math.max(0, match.index - 24), match.index);
+          const countMatch = prefix.match(/(?:^|\\s)(\\d{1,2})\\s*$/);
+          const expectedRoomCount = countMatch ? Number(countMatch[1]) : null;
+
+          // OCR can split a row into multiple lines. Read the ETA/status only
+          // from the same row continuation, stopping at the next room group.
+          let rowText = line;
+          for (let j = index + 1; j < Math.min(lines.length, index + 4); j++) {
+            if (new RegExp(roomGroupPattern.source, 'i').test(lines[j])) break;
+            rowText += ' ' + lines[j];
+          }
+          const rowUpper = rowText.toUpperCase();
+          const checkoutTime = /CHECK\\s*OUT\\s*[:=-]?\\s*\\d{1,2}(?:[:.]\\d{2})?\\s*(?:AM|PM)?/.test(rowUpper) ||
+            /CHECKOUT\\s*\\d{1,2}/.test(rowUpper);
+          const timeMatch = rowUpper.match(/\\b(\\d{1,2})(?:[:.](\\d{2})\\s*(AM|PM)?|(\\s*)(AM|PM))\\b/i);
+          const arrivalTime = timeMatch && !checkoutTime
+            ? timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') +
+              ((timeMatch[3] || timeMatch[5]) ? ' ' + (timeMatch[3] || timeMatch[5]) : '')
+            : '';
+          const status = /STAY\\s*BACK/.test(rowUpper) ? 'STAY BACK' :
+            arrivalTime ? 'CK IN' :
+            /CK\\s*OUT|CHECK\\s*OUT/.test(rowUpper) ? 'CK OUT' :
+            /\\bSTAY\\b/.test(rowUpper) ? 'STAY' :
+            /CK\\s*IN|CHECK\\s*IN/.test(rowUpper) ? 'CK IN' : 'NOT CLEAR';
+
+          const expected = Number.isInteger(expectedRoomCount) ? expectedRoomCount : null;
+          found.push({
+            roomNumber: roomNumbers.join('/'),
+            roomNumbers,
+            expectedRoomCount: expected,
+            expandedRoomCount: roomNumbers.length,
+            countMismatch: expected !== null && expected !== roomNumbers.length,
+            status,
+            arrivalTime
           });
         });
       }
-      const byRoom=new Map();
-      found.forEach(r=>{
-        const k=r.roomNumber.toUpperCase();
-        if(!byRoom.has(k)) byRoom.set(k,r);
-        else {
-          const existing=byRoom.get(k);
-          if(existing.status==='NOT CLEAR' && r.status!=='NOT CLEAR') existing.status=r.status;
-          if(!existing.arrivalTime && r.arrivalTime) existing.arrivalTime=r.arrivalTime;
-        }
-      });
-      ocrRows=[...byRoom.values()];
-      roomOcrStatus.textContent=ocrRows.length?('OCR found '+ocrRows.length+' room entries. NOT CLEAR means manual review is required.'):'No rooms could be confidently identified. Please check the image or enter rooms manually.';
-      renderOcrRows();
-    }catch(e){roomOcrStatus.textContent='OCR failed: '+e.message;}
-    finally{roomOcrBtn.disabled=false;}
-  });
-  if(confirmRoomBtn) confirmRoomBtn.addEventListener('click',async()=>{
-    if(!ocrRows.length||ocrRows.some(r=>r.status==='NOT CLEAR'||!r.roomNumber)){alert('Resolve every NOT CLEAR row before confirming.');return;}
-    const eligible=ocrRows.filter(r=>r.status==='CK OUT'||r.status==='STAY BACK'||(r.status==='CK IN'&&!!r.arrivalTime));
-    if(!eligible.length){alert('No eligible rooms found. A CK IN room must have an ETA time.');return;}
-    if(!confirm('Confirm supply deduction for '+eligible.length+' rooms?'))return;
-    confirmRoomBtn.disabled=true;
-    confirmRoomBtn.textContent='Processing…';
-    roomOcrStatus.textContent='Checking stock and processing deduction…';
-    try{
-      const batchId='ocr-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
-      const res=await fetch('/api/housekeeping/deduct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId,rooms:eligible,staffName:document.getElementById('roomOcrStaff').value})});
-      const data=await res.json();
-      if(!res.ok)throw new Error(data.error||'Deduction failed');
 
-      // Apply the server-confirmed counts immediately so every stock display refreshes.
-      if(Array.isArray(data.items)){
-        state.items=data.items;
+      // Merge duplicate OCR detections without duplicating a room in stock deduction.
+      const byRoom = new Map();
+      found.forEach(row => {
+        row.roomNumbers.forEach(roomNumber => {
+          const key = roomNumber.toUpperCase();
+          if (!byRoom.has(key)) {
+            byRoom.set(key, {
+              roomNumber,
+              expectedRoomCount: null,
+              expandedRoomCount: 1,
+              countMismatch: false,
+              status: row.status,
+              arrivalTime: row.arrivalTime
+            });
+          } else {
+            const existing = byRoom.get(key);
+            if (existing.status === 'NOT CLEAR' && row.status !== 'NOT CLEAR') existing.status = row.status;
+            if (!existing.arrivalTime && row.arrivalTime) existing.arrivalTime = row.arrivalTime;
+          }
+        });
+      });
+
+      // Keep grouped rows for count verification and review, while removing
+      // rooms that appear again in another OCR row from the final batch.
+      const seenRooms = new Set();
+      ocrRows = found.map(row => {
+        const uniqueRooms = row.roomNumbers.filter(room => {
+          const key = room.toUpperCase();
+          if (seenRooms.has(key)) return false;
+          seenRooms.add(key);
+          return true;
+        });
+        return {
+          ...row,
+          roomNumbers: uniqueRooms,
+          roomNumber: uniqueRooms.join('/'),
+          expandedRoomCount: uniqueRooms.length,
+          countMismatch: Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== uniqueRooms.length
+        };
+      }).filter(row => row.roomNumbers.length);
+
+      roomOcrStatus.textContent = ocrRows.length
+        ? 'OCR found ' + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) +
+          ' unique room entries. Check each ROOMS count before confirming.'
+        : 'No rooms could be confidently identified. Please check the image or enter rooms manually.';
+      renderOcrRows();
+    } catch (e) {
+      roomOcrStatus.textContent = 'OCR failed: ' + e.message;
+    } finally {
+      roomOcrBtn.disabled = false;
+    }
+  });
+
+  if (confirmRoomBtn) confirmRoomBtn.addEventListener('click', async () => {
+    if (!ocrRows.length || ocrRows.some(r => r.status === 'NOT CLEAR' || !r.roomNumber || r.countMismatch)) {
+      alert('Resolve unclear rows and ROOMS count mismatches before confirming.');
+      return;
+    }
+    const eligible = ocrRows.filter(r =>
+      r.status === 'CK OUT' || r.status === 'STAY BACK' ||
+      (r.status === 'CK IN' && !!r.arrivalTime)
+    );
+    if (!eligible.length) {
+      alert('No eligible rooms found. A CK IN room must have an ETA time.');
+      return;
+    }
+    if (!confirm('Confirm supply deduction for ' + eligible.reduce((sum, row) => sum + row.roomNumbers.length, 0) + ' rooms?')) return;
+
+    confirmRoomBtn.disabled = true;
+    confirmRoomBtn.textContent = 'Processing…';
+    roomOcrStatus.textContent = 'Checking stock and processing deduction…';
+    try {
+      const roomsToDeduct = eligible.flatMap(row => row.roomNumbers.map(roomNumber => ({
+        roomNumber,
+        status: row.status,
+        arrivalTime: row.arrivalTime || ''
+      })));
+      const batchId = 'ocr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      const res = await fetch('/api/housekeeping/deduct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batchId,
+          rooms: roomsToDeduct,
+          staffName: document.getElementById('roomOcrStaff').value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Deduction failed');
+
+      if (Array.isArray(data.items)) {
+        state.items = data.items;
         updateExistingDOM();
       } else {
         await loadFromServer();
       }
 
-      const itemNames=Object.keys(data.totals||{}).map(id=>{
-        const item=state.items.find(entry=>entry.id===id);
-        return (item?item.name:id)+': -'+data.totals[id];
+      const itemNames = Object.keys(data.totals || {}).map(id => {
+        const item = state.items.find(entry => entry.id === id);
+        return (item ? item.name : id) + ': -' + data.totals[id];
       });
-      roomOcrStatus.textContent='SUCCESSFULLY DEDUCTED: Stock deducted for '+data.rooms.length+' rooms. Stock count has been updated.';
-      const roomReport=(data.roomDetails||[]).map(room=>'<div style="padding:8px;margin:6px 0;background:#0b1722;border-radius:6px;"><strong>'+escapeHtml(room.roomNumber)+' — '+escapeHtml(room.status)+(room.arrivalTime?' ('+escapeHtml(room.arrivalTime)+')':'')+'</strong><div>'+Object.entries(room.items||{}).map(([id,qty])=>{const item=state.items.find(entry=>entry.id===id);return escapeHtml(item?item.name:id)+': '+qty;}).join(' · ')+'</div></div>').join('');
-      roomReview.innerHTML='<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>SUCCESSFULLY DEDUCTED</strong><p>Rooms: '+escapeHtml(data.rooms.join(', '))+'</p>'+roomReport+'<p><strong>Total deducted:</strong> '+itemNames.map(escapeHtml).join('<br>')+'</p></div>';
-      confirmRoomBtn.textContent='Deducted ✓';
-    }catch(e){
-      roomOcrStatus.textContent=(/NO STOCK/i.test(e.message)?'NO STOCK: ':'DEDUCTION FAILED: ')+e.message;
-      confirmRoomBtn.disabled=false;
-      confirmRoomBtn.textContent='Confirm & Deduct Stock';
-      alert('Stock was NOT deducted.\n\n'+e.message+'\n\nPlease check and save the required stock counts, then try again.');
+      roomOcrStatus.textContent = 'SUCCESSFULLY DEDUCTED: Stock deducted for ' + data.rooms.length + ' rooms. Stock count has been updated.';
+      const roomReport = (data.roomDetails || []).map(room =>
+        '<div style="padding:8px;margin:6px 0;background:#0b1722;border-radius:6px;"><strong>' +
+        escapeHtml(room.roomNumber) + ' — ' + escapeHtml(room.status) +
+        (room.arrivalTime ? ' (' + escapeHtml(room.arrivalTime) + ')' : '') + '</strong><div>' +
+        Object.entries(room.items || {}).map(([id, qty]) => {
+          const item = state.items.find(entry => entry.id === id);
+          return escapeHtml(item ? item.name : id) + ': ' + qty;
+        }).join(' · ') + '</div></div>'
+      ).join('');
+      roomReview.innerHTML = '<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>SUCCESSFULLY DEDUCTED</strong><p>Rooms: ' +
+        escapeHtml(data.rooms.join(', ')) + '</p>' + roomReport + '<p><strong>Total deducted:</strong> ' +
+        itemNames.map(escapeHtml).join('<br>') + '</p></div>';
+      confirmRoomBtn.textContent = 'Deducted ✓';
+    } catch (e) {
+      roomOcrStatus.textContent = (/NO STOCK/i.test(e.message) ? 'NO STOCK: ' : 'DEDUCTION FAILED: ') + e.message;
+      confirmRoomBtn.disabled = false;
+      confirmRoomBtn.textContent = 'Confirm & Deduct Stock';
+      alert('Stock was NOT deducted.\n\n' + e.message + '\n\nPlease check and save the required stock counts, then try again.');
     }
   });
-
   init();
 })();
