@@ -998,7 +998,7 @@
           const rowUpper = rowText.toUpperCase();
           const checkoutTime = /CHECK\s*OUT\s*[:=-]?\s*\d{1,2}(?:[:.]\d{2})?\s*(?:AM|PM)?/.test(rowUpper) ||
             /CHECKOUT\s*\d{1,2}/.test(rowUpper);
-          const timeMatch = rowUpper.match(/\b(\d{1,2})(?:[:.](\d{2})\s*(AM|PM)?|(\s*)(AM|PM))\b/i);
+          const timeMatch = rowUpper.match(/\b(\d{1,2})(?:[:.](\d{2})\s*(AM|PM)?|[.]?\s*(AM|PM))\b/i);
           const arrivalTime = timeMatch && !checkoutTime
             ? timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') +
               ((timeMatch[3] || timeMatch[5]) ? ' ' + (timeMatch[3] || timeMatch[5]) : '')
