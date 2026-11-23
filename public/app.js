@@ -952,8 +952,9 @@
         const item=state.items.find(entry=>entry.id===id);
         return (item?item.name:id)+': -'+data.totals[id];
       });
-      roomOcrStatus.textContent='SUCCESS: Stock deducted for '+data.rooms.length+' rooms. Stock count has been updated.';
-      roomReview.innerHTML='<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>Deduction completed</strong><p>Rooms: '+escapeHtml(data.rooms.join(', '))+'</p><p>'+itemNames.map(escapeHtml).join('<br>')+'</p></div>';
+      roomOcrStatus.textContent='SUCCESSFULLY DEDUCTED: Stock deducted for '+data.rooms.length+' rooms. Stock count has been updated.';
+      const roomReport=(data.roomDetails||[]).map(room=>'<div style="padding:8px;margin:6px 0;background:#0b1722;border-radius:6px;"><strong>'+escapeHtml(room.roomNumber)+' — '+escapeHtml(room.status)+(room.arrivalTime?' ('+escapeHtml(room.arrivalTime)+')':'')+'</strong><div>'+Object.entries(room.items||{}).map(([id,qty])=>{const item=state.items.find(entry=>entry.id===id);return escapeHtml(item?item.name:id)+': '+qty;}).join(' · ')+'</div></div>').join('');
+      roomReview.innerHTML='<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>SUCCESSFULLY DEDUCTED</strong><p>Rooms: '+escapeHtml(data.rooms.join(', '))+'</p>'+roomReport+'<p><strong>Total deducted:</strong> '+itemNames.map(escapeHtml).join('<br>')+'</p></div>';
       confirmRoomBtn.textContent='Deducted ✓';
     }catch(e){
       roomOcrStatus.textContent=(/NO STOCK/i.test(e.message)?'NO STOCK: ':'DEDUCTION FAILED: ')+e.message;
