@@ -298,10 +298,12 @@ const server = http.createServer((req, res) => {
           for (const entry of rooms) {
             const roomNumber = String(entry.roomNumber || '').trim().toUpperCase();
             const status = String(entry.status || '').trim().toUpperCase();
-            if (status !== 'CK OUT' && status !== 'STAY BACK') continue;
+            const hasEtaTime = typeof entry.arrivalTime === 'string' && entry.arrivalTime.trim().length > 0;
+            const isEligible = status === 'CK OUT' || status === 'STAY BACK' || (status === 'CK IN' && hasEtaTime);
+            if (!isEligible) continue;
             const room = known.get(roomNumber);
             if (!room) throw new Error('Unknown room: ' + roomNumber);
-            reviewed.push(roomNumber + (status === 'STAY BACK' ? ' (STAY BACK)' : ''));
+            reviewed.push(roomNumber + (status === 'STAY BACK' ? ' (STAY BACK)' : status === 'CK IN' ? ' (CHECK-IN ' + entry.arrivalTime.trim() + ')' : ' (CK OUT)'));
             const supplies = status === 'STAY BACK' ? rules.supplyRules.stayBack : rules.supplyRules[room.type];
             for (const [id, qty] of Object.entries(supplies)) totals[id] = (totals[id] || 0) + qty;
           }
@@ -311,7 +313,7 @@ const server = http.createServer((req, res) => {
             const item = appData.items.find(i => i.id === id);
             if (!item) throw new Error('Inventory item missing: ' + id);
             if (!Number.isInteger(item.currentCount) || item.currentCount < qty) {
-              throw new Error('Insufficient or uncounted stock for ' + item.name + '. Required: ' + qty + ', available: ' + item.currentCount);
+              throw new Error('NO STOCK - ' + item.name + '. Required: ' + qty + ', available: ' + item.currentCount);
             }
             changes.push({ item, qty, previousCount: item.currentCount });
           }
