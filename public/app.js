@@ -934,12 +934,12 @@
           '</select></label><div style="padding:8px;color:#cbd5e1;">ETA / Check-in: <strong>' +
           escapeHtml(r.arrivalTime || 'No time found') + '</strong><br>' + escapeHtml(countText) + '</div></div>';
       }).join('');
-    roomReview.querySelectorAll('[data-ocr-room]').forEach(el => el.addEventListener('input', () => {
+    roomReview.querySelectorAll('[data-ocr-room]').forEach(el => el.addEventListener('change', () => {
       const row = ocrRows[Number(el.dataset.ocrRoom)];
       row.roomNumber = el.value.trim();
-      const expanded = expandRoomGroup(row.roomNumber);
-      row.expandedRoomCount = expanded.length;
-      row.countMismatch = Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== expanded.length;
+      row.roomNumbers = expandRoomGroup(row.roomNumber);
+      row.expandedRoomCount = row.roomNumbers.length;
+      row.countMismatch = Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== row.expandedRoomCount;
       renderOcrRows();
     }));
     roomReview.querySelectorAll('[data-ocr-status]').forEach(el => el.addEventListener('change', () => {
