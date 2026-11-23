@@ -309,7 +309,7 @@ const server = http.createServer((req, res) => {
             roomDetails.push({ roomNumber, status, arrivalTime: hasEtaTime ? entry.arrivalTime.trim() : '', items: supplies });
             for (const [id, qty] of Object.entries(supplies)) totals[id] = (totals[id] || 0) + qty;
           }
-          if (!reviewed.length) throw new Error('No confirmed CK OUT rooms were supplied.');
+          if (!reviewed.length) throw new Error('No eligible rooms were supplied. Use CK OUT, STAY BACK, or CK IN with an ETA time.');
           const changes = [];
           for (const [id, qty] of Object.entries(totals)) {
             const item = appData.items.find(i => i.id === id);
