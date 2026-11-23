@@ -314,8 +314,11 @@ const server = http.createServer((req, res) => {
           for (const [id, qty] of Object.entries(totals)) {
             const item = appData.items.find(i => i.id === id);
             if (!item) throw new Error('Inventory item missing: ' + id);
-            if (!Number.isInteger(item.currentCount) || item.currentCount < qty) {
-              throw new Error('NO STOCK - ' + item.name + '. Required: ' + qty + ', available: ' + item.currentCount);
+            if (item.currentCount === null || item.currentCount === undefined || !Number.isInteger(item.currentCount)) {
+              throw new Error('STOCK NOT COUNTED - ' + item.name + '. Stock count cheythittilla. Please count this item first.');
+            }
+            if (item.currentCount < qty) {
+              throw new Error('INSUFFICIENT STOCK - ' + item.name + '. Required: ' + qty + ', available: ' + item.currentCount);
             }
             changes.push({ item, qty, previousCount: item.currentCount });
           }
