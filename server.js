@@ -272,6 +272,107 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    // POST /api/housekeeping/ai-read-image - read the rooming-sheet image directly with Gemini Vision
+    if (pathname === '/api/housekeeping/ai-read-image' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 12000000) {
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Image is too large. Please upload a smaller JPG or PNG.' }));
+          req.destroy();
+        }
+      });
+      req.on('end', async () => {
+        try {
+          if (!process.env.GEMINI_API_KEY) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Gemini API key is not configured on the server.' }));
+            return;
+          }
+          const payload = JSON.parse(body || '{}');
+          const imageBase64 = typeof payload.imageBase64 === 'string' ? payload.imageBase64 : '';
+          const mimeType = ['image/jpeg', 'image/png', 'image/webp'].includes(payload.mimeType) ? payload.mimeType : '';
+          if (!imageBase64 || !mimeType || imageBase64.length > 10000000) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Please upload a valid JPG, PNG, or WEBP image under 7 MB.' }));
+            return;
+          }
+          const prompt = [
+            'You are reading a hotel housekeeping rooming sheet directly from this image. Do not use OCR software.',
+            'Extract every data row that has a room number. Read the room-number cell, ROOMS count, status, and ETA/check-in time from the table.',
+            'Return ONLY valid JSON in this exact shape: {"rows":[{"roomNumber":"123-125","expectedRoomCount":3,"status":"CK OUT","arrivalTime":"","confidence":0.95,"reason":""}]}',
+            'Allowed status values: CK OUT, STAY, STAY BACK, CK IN, NOT CLEAR.',
+            'Recognize room ranges and grouped room numbers faithfully, e.g. 101-112, 123-125, 131-136, A1, A2, D1, D2, Treehouse, Clubvilla.',
+            'Do not confuse ROOMS count with adults, children, or meal counts. expectedRoomCount is the ROOMS column value only; use null if unreadable.',
+            'For CK IN, include ETA only when a clearly printed check-in/ETA time belongs to that row. Otherwise arrivalTime must be empty.',
+            'Do not infer missing data. Use NOT CLEAR and low confidence when uncertain. Do not invent room numbers or duplicate rows.',
+            'Ignore headings, totals, notes, and rows without a room number. Preserve the visual row order.',
+            'No stock calculations or deductions.'
+          ].join(' ');
+          const requestBody = JSON.stringify({
+            contents: [{ parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: imageBase64 } }
+            ] }],
+            generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 4096 }
+          });
+          const geminiResult = await new Promise((resolve, reject) => {
+            const apiReq = https.request({
+              hostname: 'generativelanguage.googleapis.com',
+              path: '/v1beta/models/gemini-3.8-flash:generateContent',
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': process.env.GEMINI_API_KEY,
+                'Content-Length': Buffer.byteLength(requestBody)
+              }
+            }, apiRes => {
+              let responseText = '';
+              apiRes.on('data', chunk => responseText += chunk);
+              apiRes.on('end', () => {
+                let parsed;
+                try { parsed = JSON.parse(responseText || '{}'); } catch (_) {
+                  return reject(new Error('Gemini returned an unreadable response.'));
+                }
+                if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
+                  return reject(new Error((parsed.error && parsed.error.message) || 'Gemini image reading failed.'));
+                }
+                resolve(parsed);
+              });
+            });
+            apiReq.setTimeout(60000, () => apiReq.destroy(new Error('Gemini image reading timed out. Please try again.')));
+            apiReq.on('error', reject);
+            apiReq.write(requestBody);
+            apiReq.end();
+          });
+          const modelText = geminiResult.candidates && geminiResult.candidates[0] &&
+            geminiResult.candidates[0].content && geminiResult.candidates[0].content.parts &&
+            geminiResult.candidates[0].content.parts.map(part => part.text || '').join('');
+          let aiData;
+          try { aiData = JSON.parse(modelText || '{}'); } catch (_) {
+            throw new Error('Gemini response was not valid JSON. Please upload a clearer image.');
+          }
+          const allowedStatuses = new Set(['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR']);
+          const rows = (Array.isArray(aiData.rows) ? aiData.rows : []).slice(0, 80).map(row => ({
+            roomNumber: typeof row.roomNumber === 'string' ? row.roomNumber.slice(0, 120) : '',
+            expectedRoomCount: Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount > 0 ? row.expectedRoomCount : null,
+            status: allowedStatuses.has(String(row.status || '').toUpperCase()) ? String(row.status).toUpperCase() : 'NOT CLEAR',
+            arrivalTime: typeof row.arrivalTime === 'string' ? row.arrivalTime.slice(0, 16) : '',
+            confidence: Math.max(0, Math.min(1, Number(row.confidence) || 0)),
+            reason: typeof row.reason === 'string' ? row.reason.slice(0, 180) : ''
+          })).filter(row => row.roomNumber);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, model: 'gemini-3.8-flash', rows }));
+        } catch (error) {
+          console.error('Gemini rooming-sheet image read failed:', error.message);
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: error.message || 'Gemini image reading failed.' }));
+        }
+      });
+      return;
+    }
+
     // POST /api/housekeeping/ai-review - Gemini assists with OCR status/ETA interpretation only
     if (pathname === '/api/housekeeping/ai-review' && req.method === 'POST') {
       let body = '';
