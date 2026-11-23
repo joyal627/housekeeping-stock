@@ -904,8 +904,8 @@
         for(const m of matches){
           const status= /STAY\s*BACK/.test(upper)?'STAY BACK': /CK\s*OUT|CHECK\s*OUT/.test(upper)?'CK OUT': /\bSTAY\b/.test(upper)?'STAY': /CK\s*IN|CHECK\s*IN/.test(upper)?'CK IN':'NOT CLEAR';
           // Arrival time is the expected check-in time; it is not a confirmed CK IN status.
-          const timeMatch = upper.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(AM|PM)?\b/);
-          const arrivalTime = timeMatch ? (timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') + (timeMatch[3] ? ' ' + timeMatch[3] : '')) : '';
+          const timeMatch = upper.match(/\b(\d{1,2})(?:[:.](\d{2})\s*(AM|PM)?|(\s*)(AM|PM))\b/);
+          const arrivalTime = timeMatch ? (timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') + ((timeMatch[3] || timeMatch[5]) ? ' ' + (timeMatch[3] || timeMatch[5]) : '')) : '';
           found.push({roomNumber:m[1]==='TREEHOUSE'?'Treehouse':m[1]==='CLUBVILLA'?'Clubvilla':m[1],status,arrivalTime});
         }
       }
