@@ -969,7 +969,21 @@
     roomOcrBtn.disabled = true;
     roomOcrStatus.textContent = 'Reading image… please wait.';
     try {
-      const result = await Tesseract.recognize(file, 'eng');
+      // Convert the selected mobile image to a data URL before OCR.
+      // This avoids Tesseract.js FileLoader Code=0 errors on some Android camera/gallery files.
+      if (!file || !file.size) throw new Error('Selected image is empty. Please choose the image again.');
+      if (!file.type || !file.type.startsWith('image/')) throw new Error('Selected file is not a supported image.');
+      const imageDataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Browser could not read this image. Try JPG or PNG.'));
+        reader.onabort = () => reject(new Error('Image reading was cancelled. Please try again.'));
+        reader.readAsDataURL(file);
+      });
+      if (typeof imageDataUrl !== 'string' || !imageDataUrl.startsWith('data:image/')) {
+        throw new Error('Image could not be converted. Please upload a JPG or PNG image.');
+      }
+      const result = await Tesseract.recognize(imageDataUrl, 'eng');
       const lines = result.data.text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
       const found = [];
 
