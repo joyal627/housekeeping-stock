@@ -989,7 +989,7 @@
           // Only accept a count when a standalone number directly precedes
           // the room-list cell; Adult/Kid/meal counts occur after Room Num.
           const prefix = line.slice(Math.max(0, match.index - 24), match.index);
-          const countMatch = prefix.match(/(?:^|\s)(\d{1,2})\s*$/);
+          const countMatch = prefix.match(/(?:^|\s)(\d{1,2})[\s_|]*$/);
           const expectedRoomCount = countMatch ? Number(countMatch[1]) : null;
 
           // OCR can split a row into multiple lines. Read the ETA/status only
