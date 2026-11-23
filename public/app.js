@@ -874,14 +874,14 @@
 
   function expandRoomGroup(raw) {
     const normalized = raw.toUpperCase()
-      .replace(/TREE\\s*HOUSE/g, 'TREEHOUSE')
-      .replace(/CLUB\\s*VILLA/g, 'CLUBVILLA')
+      .replace(/TREE\s*HOUSE/g, 'TREEHOUSE')
+      .replace(/CLUB\s*VILLA/g, 'CLUBVILLA')
       .replace(/[–—]/g, '-');
     const expanded = [];
     normalized.split('/').forEach(part => {
       const value = part.trim();
-      const range = value.match(/^([A-Z]?\\d+)\\s*-\\s*([A-Z]?\\d+)$/);
-      if (range && /^\\d+$/.test(range[1]) && /^\\d+$/.test(range[2])) {
+      const range = value.match(/^([A-Z]?\d+)\s*-\s*([A-Z]?\d+)$/);
+      if (range && /^\d+$/.test(range[1]) && /^\\d+$/.test(range[2])) {
         const from = Number(range[1]);
         const to = Number(range[2]);
         const step = from <= to ? 1 : -1;
@@ -985,7 +985,7 @@
           // Only accept a count when a standalone number directly precedes
           // the room-list cell; Adult/Kid/meal counts occur after Room Num.
           const prefix = line.slice(Math.max(0, match.index - 24), match.index);
-          const countMatch = prefix.match(/(?:^|\\s)(\\d{1,2})\\s*$/);
+          const countMatch = prefix.match(/(?:^|\s)(\d{1,2})\s*$/);
           const expectedRoomCount = countMatch ? Number(countMatch[1]) : null;
 
           // OCR can split a row into multiple lines. Read the ETA/status only
@@ -996,18 +996,18 @@
             rowText += ' ' + lines[j];
           }
           const rowUpper = rowText.toUpperCase();
-          const checkoutTime = /CHECK\\s*OUT\\s*[:=-]?\\s*\\d{1,2}(?:[:.]\\d{2})?\\s*(?:AM|PM)?/.test(rowUpper) ||
-            /CHECKOUT\\s*\\d{1,2}/.test(rowUpper);
-          const timeMatch = rowUpper.match(/\\b(\\d{1,2})(?:[:.](\\d{2})\\s*(AM|PM)?|(\\s*)(AM|PM))\\b/i);
+          const checkoutTime = /CHECK\s*OUT\s*[:=-]?\s*\d{1,2}(?:[:.]\d{2})?\s*(?:AM|PM)?/.test(rowUpper) ||
+            /CHECKOUT\s*\d{1,2}/.test(rowUpper);
+          const timeMatch = rowUpper.match(/\b(\d{1,2})(?:[:.](\d{2})\s*(AM|PM)?|(\s*)(AM|PM))\b/i);
           const arrivalTime = timeMatch && !checkoutTime
             ? timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') +
               ((timeMatch[3] || timeMatch[5]) ? ' ' + (timeMatch[3] || timeMatch[5]) : '')
             : '';
-          const status = /STAY\\s*BACK/.test(rowUpper) ? 'STAY BACK' :
+          const status = /STAY\s*BACK/.test(rowUpper) ? 'STAY BACK' :
             arrivalTime ? 'CK IN' :
-            /CK\\s*OUT|CHECK\\s*OUT/.test(rowUpper) ? 'CK OUT' :
-            /\\bSTAY\\b/.test(rowUpper) ? 'STAY' :
-            /CK\\s*IN|CHECK\\s*IN/.test(rowUpper) ? 'CK IN' : 'NOT CLEAR';
+            /CK\s*OUT|CHECK\s*OUT/.test(rowUpper) ? 'CK OUT' :
+            /\bSTAY\b/.test(rowUpper) ? 'STAY' :
+            /CK\s*IN|CHECK\s*IN/.test(rowUpper) ? 'CK IN' : 'NOT CLEAR';
 
           const expected = Number.isInteger(expectedRoomCount) ? expectedRoomCount : null;
           found.push({
