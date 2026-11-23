@@ -969,7 +969,7 @@
     roomOcrStatus.textContent = 'Reading image… please wait.';
     try {
       const result = await Tesseract.recognize(file, 'eng');
-      const lines = result.data.text.split(/\\n/).map(line => line.trim()).filter(Boolean);
+      const lines = result.data.text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
       const found = [];
 
       for (let index = 0; index < lines.length; index++) {
@@ -988,9 +988,12 @@
           // ROOMS is the numeric column immediately before Room Num.
           // Only accept a count when a standalone number directly precedes
           // the room-list cell; Adult/Kid/meal counts occur after Room Num.
-          const prefix = line.slice(Math.max(0, match.index - 24), match.index);
-          const countMatch = prefix.match(/(?:^|\s)(\d{1,2})[\s_|]*$/);
-          const expectedRoomCount = countMatch ? Number(countMatch[1]) : null;
+          const prefix = line.slice(Math.max(0, match.index - 40), match.index);
+          const suffix = line.slice(match.index + match[0].length, match.index + match[0].length + 40);
+          // ROOMS may be printed immediately before the room list or as "2 rooms" after it.
+          const prefixCount = prefix.match(/(?:^|[\s_|])(\d{1,2})[\s_|]*$/);
+          const suffixCount = suffix.match(/^\s*(\d{1,2})\s*(?:ROOMS?|RM)\b/i);
+          const expectedRoomCount = suffixCount ? Number(suffixCount[1]) : prefixCount ? Number(prefixCount[1]) : null;
 
           // OCR can split a row into multiple lines. Read the ETA/status only
           // from the same row continuation, stopping at the next room group.
