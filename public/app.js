@@ -1001,7 +1001,7 @@
           const timeMatch = rowUpper.match(/\b(\d{1,2})(?:[:.](\d{2})\s*(AM|PM)?|[.]?\s*(AM|PM))\b/i);
           const arrivalTime = timeMatch && !checkoutTime
             ? timeMatch[1] + (timeMatch[2] ? ':' + timeMatch[2] : '') +
-              ((timeMatch[3] || timeMatch[5]) ? ' ' + (timeMatch[3] || timeMatch[5]) : '')
+              ((timeMatch[3] || timeMatch[4]) ? ' ' + (timeMatch[3] || timeMatch[4]) : '')
             : '';
           const status = /STAY\s*BACK/.test(rowUpper) ? 'STAY BACK' :
             arrivalTime ? 'CK IN' :
