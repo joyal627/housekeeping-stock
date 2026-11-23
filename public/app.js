@@ -881,7 +881,7 @@
     normalized.split('/').forEach(part => {
       const value = part.trim();
       const range = value.match(/^([A-Z]?\d+)\s*-\s*([A-Z]?\d+)$/);
-      if (range && /^\d+$/.test(range[1]) && /^\\d+$/.test(range[2])) {
+      if (range && /^\d+$/.test(range[1]) && /^\d+$/.test(range[2])) {
         const from = Number(range[1]);
         const to = Number(range[2]);
         const step = from <= to ? 1 : -1;
