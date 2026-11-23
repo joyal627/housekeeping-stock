@@ -295,6 +295,7 @@ const server = http.createServer((req, res) => {
           const known = new Map(rules.rooms.map(r => [r.roomNumber.toUpperCase(), r]));
           const totals = {};
           const reviewed = [];
+          const roomDetails = [];
           for (const entry of rooms) {
             const roomNumber = String(entry.roomNumber || '').trim().toUpperCase();
             const status = String(entry.status || '').trim().toUpperCase();
@@ -305,6 +306,7 @@ const server = http.createServer((req, res) => {
             if (!room) throw new Error('Unknown room: ' + roomNumber);
             reviewed.push(roomNumber + (status === 'STAY BACK' ? ' (STAY BACK)' : status === 'CK IN' ? ' (CHECK-IN ' + entry.arrivalTime.trim() + ')' : ' (CK OUT)'));
             const supplies = status === 'STAY BACK' ? rules.supplyRules.stayBack : rules.supplyRules[room.type];
+            roomDetails.push({ roomNumber, status, arrivalTime: hasEtaTime ? entry.arrivalTime.trim() : '', items: supplies });
             for (const [id, qty] of Object.entries(supplies)) totals[id] = (totals[id] || 0) + qty;
           }
           if (!reviewed.length) throw new Error('No confirmed CK OUT rooms were supplied.');
@@ -336,7 +338,7 @@ const server = http.createServer((req, res) => {
           appData.housekeeping.deductions = appData.housekeeping.deductions.slice(0, 200);
           saveData(appData);
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, rooms: reviewed, totals, items: appData.items }));
+          res.end(JSON.stringify({ success: true, rooms: reviewed, roomDetails, totals, items: appData.items }));
         } catch (e) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: e.message }));
