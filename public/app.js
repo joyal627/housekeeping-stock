@@ -974,7 +974,11 @@
 
       for (let index = 0; index < lines.length; index++) {
         const line = lines[index];
-        const matches = [...line.toUpperCase().matchAll(new RegExp(roomGroupPattern.source, 'gi'))];
+        const normalizedLine = line.toUpperCase()
+          .replace(/\bAT\s*[-–/]\s*AZ\b/g, 'A1-A2')
+          .replace(/\bAI\s*[-–/]\s*A2\b/g, 'A1-A2')
+          .replace(/\bA1\s*[-–/]\s*AZ\b/g, 'A1-A2');
+        const matches = [...normalizedLine.matchAll(new RegExp(roomGroupPattern.source, 'gi'))];
         if (!matches.length) continue;
 
         matches.forEach(match => {
