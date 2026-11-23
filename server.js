@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -266,6 +267,105 @@ const server = http.createServer((req, res) => {
         } catch (e) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
+    // POST /api/housekeeping/ai-review - Gemini assists with OCR status/ETA interpretation only
+    if (pathname === '/api/housekeeping/ai-review' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 60000) req.destroy();
+      });
+      req.on('end', async () => {
+        try {
+          if (!process.env.GEMINI_API_KEY) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Gemini API key is not configured on the server.' }));
+            return;
+          }
+          const payload = JSON.parse(body || '{}');
+          const rawText = typeof payload.rawText === 'string' ? payload.rawText.slice(0, 15000) : '';
+          const rows = Array.isArray(payload.rows) ? payload.rows.slice(0, 80) : [];
+          if (!rawText || !rows.length) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'OCR text and parsed rows are required.' }));
+            return;
+          }
+          const prompt = [
+            'You are assisting a hotel housekeeping rooming-sheet OCR review.',
+            'Interpret ONLY the status and ETA time for each supplied row using the raw OCR text as context.',
+            'Never invent room numbers, never add/remove rows, and never calculate or deduct inventory.',
+            'Return JSON only: {"suggestions":[{"index":0,"status":"CK OUT","arrivalTime":"","confidence":0.9,"reason":"short reason"}]}.',
+            'Allowed status values: CK OUT, STAY, STAY BACK, CK IN, NOT CLEAR.',
+            'Use NOT CLEAR and confidence below 0.7 when evidence is ambiguous.',
+            'For CK IN, arrivalTime must contain a clearly visible ETA time; otherwise use empty string.',
+            'Keep the supplied row order and index. Do not infer a time from unrelated numbers.',
+            'Raw OCR text:\n' + rawText,
+            'Parsed rows:\n' + JSON.stringify(rows.map((r, index) => ({
+              index, roomNumber: String(r.roomNumber || ''),
+              status: String(r.status || 'NOT CLEAR'),
+              arrivalTime: String(r.arrivalTime || '')
+            })))
+          ].join('\n\n');
+          const requestBody = JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 2048 }
+          });
+          const geminiResult = await new Promise((resolve, reject) => {
+            const apiReq = https.request({
+              hostname: 'generativelanguage.googleapis.com',
+              path: '/v1beta/models/gemini-3.8-flash:generateContent',
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': process.env.GEMINI_API_KEY,
+                'Content-Length': Buffer.byteLength(requestBody)
+              }
+            }, apiRes => {
+              let responseText = '';
+              apiRes.on('data', chunk => responseText += chunk);
+              apiRes.on('end', () => {
+                let parsed;
+                try { parsed = JSON.parse(responseText || '{}'); } catch (_) {
+                  return reject(new Error('Gemini returned an unreadable response.'));
+                }
+                if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
+                  return reject(new Error((parsed.error && parsed.error.message) || 'Gemini API request failed.'));
+                }
+                resolve(parsed);
+              });
+            });
+            apiReq.setTimeout(25000, () => apiReq.destroy(new Error('Gemini request timed out.')));
+            apiReq.on('error', reject);
+            apiReq.write(requestBody);
+            apiReq.end();
+          });
+          const modelText = geminiResult.candidates && geminiResult.candidates[0] &&
+            geminiResult.candidates[0].content && geminiResult.candidates[0].content.parts &&
+            geminiResult.candidates[0].content.parts.map(part => part.text || '').join('');
+          let aiData;
+          try { aiData = JSON.parse(modelText || '{}'); } catch (_) {
+            throw new Error('Gemini response was not valid JSON.');
+          }
+          const allowedStatuses = new Set(['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR']);
+          const suggestions = (Array.isArray(aiData.suggestions) ? aiData.suggestions : [])
+            .filter(s => s && Number.isInteger(s.index) && s.index >= 0 && s.index < rows.length)
+            .map(s => ({
+              index: s.index,
+              status: allowedStatuses.has(String(s.status || '').toUpperCase()) ? String(s.status).toUpperCase() : 'NOT CLEAR',
+              arrivalTime: typeof s.arrivalTime === 'string' ? s.arrivalTime.slice(0, 16) : '',
+              confidence: Math.max(0, Math.min(1, Number(s.confidence) || 0)),
+              reason: typeof s.reason === 'string' ? s.reason.slice(0, 180) : ''
+            }));
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, model: 'gemini-3.8-flash', suggestions }));
+        } catch (error) {
+          console.error('Gemini OCR review failed:', error.message);
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: error.message || 'Gemini AI review failed.' }));
         }
       });
       return;
