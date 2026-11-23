@@ -190,10 +190,10 @@
     }
   },
   "issuePolicy": {
-    "eligibleStatus": "CK OUT",
+    "eligibleStatus": "CK OUT, STAY BACK, or CK IN when ETA contains a time",
     "excludeStatuses": [
       "STAY",
-      "CK IN"
+      "CK IN without ETA time"
     ],
     "requireStaffConfirmation": true,
     "preventDuplicateDeductions": true,
