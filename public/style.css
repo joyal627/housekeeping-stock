@@ -897,3 +897,5 @@ body {
   transform: translateX(-50%) translateY(0);
   opacity: 1;
 }
+
+.web-push-banner{position:fixed;z-index:11000;left:50%;bottom:20px;transform:translateX(-50%);width:min(560px,calc(100% - 28px));display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 18px;background:#172638;border:1px solid #31506d;border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.45)}.web-push-banner[hidden]{display:none}.web-push-copy{display:flex;flex-direction:column;gap:4px}.web-push-copy strong{font-size:14px;color:#fff}.web-push-copy span{font-size:12px;color:#b8c7d6}.web-push-actions{display:flex;gap:8px;flex-shrink:0}.web-push-actions button{border:0;border-radius:8px;padding:9px 13px;font-weight:700;font-size:12px;cursor:pointer}.web-push-actions button:first-child{background:#2dd4bf;color:#042f2e}.web-push-actions button:last-child{background:#26384b;color:#dbe6f0}@media(max-width:480px){.web-push-banner{align-items:flex-start;flex-direction:column}.web-push-actions{width:100%}.web-push-actions button{flex:1}}
