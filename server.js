@@ -342,6 +342,7 @@ const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -779,7 +780,30 @@ const server = http.createServer((req, res) => {
 
   let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
   const ext = path.extname(filePath).toLowerCase();
-  const contentType = mimeTypes[ext] || 'application/octet-stream';
+  let contentType = mimeTypes[ext] || 'application/octet-stream';
+  if (pathname === '/manifest.json') contentType = 'application/manifest+json; charset=utf-8';
+  if (pathname === '/sw.js') contentType = 'application/javascript; charset=utf-8';
+
+  // The icon source files are base64-encoded PNG payloads so this server
+  // returns real PNG bytes with the correct image/png content type.
+  if (pathname === '/icons/icon-192.png' || pathname === '/icons/icon-512.png') {
+    fs.readFile(filePath, 'utf8', (err, encoded) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Icon not found');
+        return;
+      }
+      try {
+        const png = Buffer.from(encoded.trim(), 'base64');
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' });
+        res.end(png);
+      } catch (_) {
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Icon could not be decoded');
+      }
+    });
+    return;
+  }
 
   fs.readFile(filePath, (err, content) => {
     if (err) {
