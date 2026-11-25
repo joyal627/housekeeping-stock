@@ -874,14 +874,20 @@
   const roomGroupPattern = new RegExp('\\b' + roomTokenPattern + '(?:\\s*[-–/]\\s*' + roomTokenPattern + ')*', 'gi');
 
   function expandRoomGroup(raw) {
+    if (!raw || typeof raw !== 'string') return [];
     const normalized = raw.toUpperCase()
       .replace(/TREE\s*HOUSE/g, 'TREEHOUSE')
       .replace(/CLUB\s*VILLA/g, 'CLUBVILLA')
-      .replace(/[–—]/g, '-');
+      .replace(/[–—]/g, '-')
+      .replace(/\s+TO\s+/gi, '-');
+
     const expanded = [];
-    normalized.split('/').forEach(part => {
-      const value = part.trim();
-      const range = value.match(/^([A-Z]?\d+)\s*-\s*([A-Z]?\d+)$/);
+    const parts = normalized.split(/[/,;\n&+]+/);
+    parts.forEach(part => {
+      const trimmed = part.trim();
+      if (!trimmed) return;
+
+      const range = trimmed.match(/^([A-Z]?\d+)\s*-\s*([A-Z]?\d+)$/);
       if (range && /^\d+$/.test(range[1]) && /^\d+$/.test(range[2])) {
         const from = Number(range[1]);
         const to = Number(range[2]);
@@ -890,14 +896,35 @@
           const room = String(n);
           if (validRoomNumbers.has(room)) expanded.push(room);
         }
+        return;
       } else if (range && range[1].startsWith('A') && range[2].startsWith('A')) {
         expanded.push('A1', 'A2');
+        return;
       } else if (range && range[1].startsWith('D') && range[2].startsWith('D')) {
         expanded.push('D1', 'D2');
-      } else if (validRoomNumbers.has(value)) {
-        expanded.push(value);
+        return;
       }
+
+      // Handle space-separated room numbers like "101 102 103"
+      const tokens = trimmed.split(/\s+/);
+      tokens.forEach(tok => {
+        const val = tok.trim();
+        if (!val) return;
+        const subRange = val.match(/^([A-Z]?\d+)-([A-Z]?\d+)$/);
+        if (subRange && /^\d+$/.test(subRange[1]) && /^\d+$/.test(subRange[2])) {
+          const from = Number(subRange[1]);
+          const to = Number(subRange[2]);
+          const step = from <= to ? 1 : -1;
+          for (let n = from; n !== to + step; n += step) {
+            const room = String(n);
+            if (validRoomNumbers.has(room)) expanded.push(room);
+          }
+        } else if (validRoomNumbers.has(val)) {
+          expanded.push(val);
+        }
+      });
     });
+
     return [...new Set(expanded)].map(room =>
       room === 'TREEHOUSE' ? 'Treehouse' : room === 'CLUBVILLA' ? 'Clubvilla' : room
     );
@@ -921,15 +948,23 @@
     const opts = ['CK OUT','STAY','STAY BACK','CK IN','NOT CLEAR'];
     roomReview.innerHTML = '<h3 style="margin:14px 0 8px;">Review extracted rooms</h3>' + (roomAiNote ? '<p style="padding:9px;border:1px solid #2563eb;border-radius:7px;color:#bfdbfe;">' + escapeHtml(roomAiNote) + '</p>' : '') +
       ocrRows.map((r,i) => {
+        const countDiff = Number.isInteger(r.expectedRoomCount) ? Math.abs(r.expectedRoomCount - r.expandedRoomCount) : 0;
         const countText = Number.isInteger(r.expectedRoomCount)
           ? 'ROOMS column: ' + r.expectedRoomCount + ' | Detected: ' + r.expandedRoomCount + ' ' +
-            (r.expectedRoomCount === r.expandedRoomCount ? '✓ Count matches' : '⚠ COUNT MISMATCH — check room numbers')
+            (r.expectedRoomCount === r.expandedRoomCount
+              ? '✓ Count matches'
+              : countDiff <= 2
+                ? 'ℹ Count close (' + r.expandedRoomCount + ' rooms detected)'
+                : '⚠ COUNT MISMATCH — check room numbers')
           : 'Detected rooms: ' + r.expandedRoomCount;
+        const expandedPreview = r.roomNumbers && r.roomNumbers.length > 1
+          ? '<div style="font-size:12px;color:#94a3b8;margin-top:4px;word-break:break-all;">All rooms (' + r.expandedRoomCount + '): <strong>' + escapeHtml(r.roomNumbers.join(', ')) + '</strong></div>'
+          : '';
         return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0;padding:10px;background:#131e2c;border:1px solid ' +
-          (Number.isInteger(r.expectedRoomCount) && r.expectedRoomCount !== r.expandedRoomCount ? '#b45309' : '#1d2c3e') +
+          (Number.isInteger(r.expectedRoomCount) && countDiff > 2 ? '#b45309' : '#1d2c3e') +
           ';border-radius:8px;">' +
           '<label>Room(s) <input data-ocr-room="' + i + '" value="' + escapeHtml(r.roomNumber) +
-          '" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;"></label>' +
+          '" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">' + expandedPreview + '</label>' +
           '<label>Status <select data-ocr-status="' + i + '" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">' +
           opts.map(o => '<option ' + (r.status === o ? 'selected' : '') + '>' + o + '</option>').join('') +
           '</select></label><div style="padding:8px;color:#cbd5e1;">ETA / Check-in: <strong>' +
@@ -940,7 +975,7 @@
       row.roomNumber = el.value.trim();
       row.roomNumbers = expandRoomGroup(row.roomNumber);
       row.expandedRoomCount = row.roomNumbers.length;
-      row.countMismatch = Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== row.expandedRoomCount;
+      row.countMismatch = Number.isInteger(row.expectedRoomCount) && Math.abs(row.expectedRoomCount - row.expandedRoomCount) > 2;
       renderOcrRows();
     }));
     roomReview.querySelectorAll('[data-ocr-status]').forEach(el => el.addEventListener('change', () => {
@@ -952,7 +987,7 @@
 
   function updateConfirmState() {
     confirmRoomBtn.disabled = !ocrRows.length || ocrRows.some(r =>
-      r.status === 'NOT CLEAR' || !r.roomNumber || r.countMismatch
+      r.status === 'NOT CLEAR' || !r.roomNumber || (Number.isInteger(r.expectedRoomCount) && Math.abs(r.expectedRoomCount - r.expandedRoomCount) > 2)
     );
   }
 
@@ -994,37 +1029,22 @@
         const roomNumbers = expandRoomGroup(String(row.roomNumber || ''));
         const expected = Number.isInteger(row.expectedRoomCount) ? row.expectedRoomCount : null;
         const uniqueRooms = [...new Set(roomNumbers)];
+        const countDiff = expected !== null ? Math.abs(expected - uniqueRooms.length) : 0;
         return {
-          roomNumber: uniqueRooms.join('/'),
+          roomNumber: row.roomNumber || uniqueRooms.join(', '),
           roomNumbers: uniqueRooms,
           expectedRoomCount: expected,
           expandedRoomCount: uniqueRooms.length,
-          countMismatch: expected !== null && expected !== uniqueRooms.length,
+          countMismatch: expected !== null && countDiff > 2,
           status: allowed.includes(row.status) ? row.status : 'NOT CLEAR',
           arrivalTime: row.arrivalTime || '',
           confidence: Number(row.confidence) || 0
         };
       }).filter(row => row.roomNumbers.length);
-      const seenRooms = new Set();
-      ocrRows = ocrRows.map(row => {
-        const uniqueRooms = row.roomNumbers.filter(room => {
-          const key = room.toUpperCase();
-          if (seenRooms.has(key)) return false;
-          seenRooms.add(key);
-          return true;
-        });
-        return {
-          ...row,
-          roomNumbers: uniqueRooms,
-          roomNumber: uniqueRooms.join('/'),
-          expandedRoomCount: uniqueRooms.length,
-          countMismatch: Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== uniqueRooms.length
-        };
-      }).filter(row => row.roomNumbers.length);
       const usedModel = data.model || 'Gemini AI';
       roomAiNote = `Read directly by ${usedModel} (no Tesseract OCR). Check every room, status, ETA and ROOMS count before deduction.`;
       roomOcrStatus.textContent = ocrRows.length
-        ? `✓ ${usedModel} found ` + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) + ' unique room entries. Review before confirming.'
+        ? `✓ ${usedModel} found ` + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) + ' room entries across ' + ocrRows.length + ' rows. Review before confirming.'
         : `${usedModel} could not identify room rows. Please upload a clearer rooming sheet.`;
       renderOcrRows();
     } catch (e) {
@@ -1038,8 +1058,8 @@
   });
 
   if (confirmRoomBtn) confirmRoomBtn.addEventListener('click', async () => {
-    if (!ocrRows.length || ocrRows.some(r => r.status === 'NOT CLEAR' || !r.roomNumber || r.countMismatch)) {
-      alert('Resolve unclear rows and ROOMS count mismatches before confirming.');
+    if (!ocrRows.length || ocrRows.some(r => r.status === 'NOT CLEAR' || !r.roomNumber || (Number.isInteger(r.expectedRoomCount) && Math.abs(r.expectedRoomCount - r.expandedRoomCount) > 2))) {
+      alert('Resolve unclear rows before confirming.');
       return;
     }
     const eligible = ocrRows.filter(r =>
@@ -1050,17 +1070,30 @@
       alert('No eligible rooms found. A CK IN room must have an ETA time.');
       return;
     }
-    if (!confirm('Confirm supply deduction for ' + eligible.reduce((sum, row) => sum + row.roomNumbers.length, 0) + ' rooms?')) return;
+
+    // Deduplicate rooms at deduction time across rows so no room is charged twice
+    const seenForDeduct = new Set();
+    const roomsToDeduct = [];
+    for (const row of eligible) {
+      for (const roomNumber of row.roomNumbers) {
+        const key = roomNumber.toUpperCase();
+        if (!seenForDeduct.has(key)) {
+          seenForDeduct.add(key);
+          roomsToDeduct.push({
+            roomNumber,
+            status: row.status,
+            arrivalTime: row.arrivalTime || ''
+          });
+        }
+      }
+    }
+
+    if (!confirm('Confirm supply deduction for ' + roomsToDeduct.length + ' rooms?')) return;
 
     confirmRoomBtn.disabled = true;
     confirmRoomBtn.textContent = 'Processing…';
     roomOcrStatus.textContent = 'Checking stock and processing deduction…';
     try {
-      const roomsToDeduct = eligible.flatMap(row => row.roomNumbers.map(roomNumber => ({
-        roomNumber,
-        status: row.status,
-        arrivalTime: row.arrivalTime || ''
-      })));
       const batchId = 'ocr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
       const res = await fetch('/api/housekeeping/deduct', {
         method: 'POST',
