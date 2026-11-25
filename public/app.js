@@ -779,12 +779,12 @@
         // Check 5 limit for Chemical supplies or items with maxLimit
         const maxLimit = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
         if (maxLimit && current >= maxLimit) {
-      alert(currentLanguage === 'hi' ? `त्रुटि: ${item.name} की संख्या ${maxLimit} ${item.unit} से अधिक नहीं हो सकती।` : `ERROR: ${item.name} count cannot exceed ${maxLimit}!`);
+      alert(currentLanguage === 'ml' ? `ERROR: ${item.name} count ${maxLimit}-il kooduthal aakaruthu.` : `ERROR: ${item.name} count cannot exceed ${maxLimit}!`);
           return;
         }
 
         if (current >= 999) {
-      alert(currentLanguage === 'hi' ? 'कृपया स्टॉक ध्यान से जाँचें। संख्या 1000 या उससे अधिक नहीं हो सकती (अधिकतम सीमा 999 है)।' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
+      alert(currentLanguage === 'ml' ? 'Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
           return;
         }
         input.value = current + 1;
@@ -833,7 +833,7 @@
     // Validation 1: Chemical supplies or maxLimit count > 5
     const maxAllowed = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
     if (maxAllowed && num > maxAllowed) {
-      alert(currentLanguage === 'hi' ? `त्रुटि: ${item.name} की संख्या ${maxAllowed} ${item.unit} से अधिक नहीं हो सकती।` : `ERROR: ${item.name} count cannot exceed ${maxAllowed}!`);
+      alert(currentLanguage === 'ml' ? `ERROR: ${item.name} count ${maxAllowed}-il kooduthal aakaruthu.` : `ERROR: ${item.name} count cannot exceed ${maxAllowed}!`);
       return;
     }
 
@@ -886,7 +886,7 @@
     const item = state.items.find(i => i.id === id);
     const itemName = item ? item.name : 'this item';
 
-    const confirmed = confirm(currentLanguage === 'hi' ? `क्या आप "${itemName}" की गिनती रीसेट करना चाहते हैं?` : `Are you sure you want to reset the count for "${itemName}"?`);
+    const confirmed = confirm(currentLanguage === 'ml' ? `"${itemName}" count reset cheyyano?` : `Are you sure you want to reset the count for "${itemName}"?`);
     if (!confirmed) return;
 
     const input = document.getElementById(`input-${id}`);
@@ -1009,7 +1009,7 @@
     roomReview.innerHTML = '';
     confirmRoomBtn.disabled = true;
     ocrRows = [];
-    roomOcrStatus.textContent = currentLanguage === 'hi' ? 'तस्वीर तैयार है। AI से पढ़ने के लिए बटन दबाएँ।' : 'Image ready. Tap Read Image (AI).';
+    roomOcrStatus.textContent = currentLanguage === 'ml' ? 'Image ready. AI reading-in Read Image button click cheyyuka.' : 'Image ready. Tap Read Image (AI).';
     roomImageInput.selectedRoomFile = file;
   }
   if (roomImageInput) roomImageInput.addEventListener('change', () => handleRoomImageChange(roomImageInput));
@@ -1228,8 +1228,8 @@
           '<li>' + escapeHtml(localizedItemName(x.name)) + ' — Required: ' + x.required +
           ', Available: ' + (x.available || 0) + ', Short: ' + (x.shortage || x.required) + '</li>'
         ).join('');
-        roomOcrStatus.textContent = currentLanguage === 'hi'
-          ? 'कटौती असफल: किसी भी उत्पाद का स्टॉक नहीं घटाया गया।'
+        roomOcrStatus.textContent = currentLanguage === 'ml'
+          ? 'Deduction unsuccessful: oru item-ilum stock deduct cheythilla.'
           : 'Deduction unsuccessful: no stock was deducted.';
         roomReview.innerHTML = '<div style="color:#fca5a5;margin-top:12px;padding:12px;border:1px solid #7f1d1d;border-radius:8px;"><strong>' +
           (currentLanguage === 'ml' ? 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE' : 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE') +
