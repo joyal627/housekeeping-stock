@@ -349,7 +349,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
   }
 
@@ -480,11 +480,29 @@
   }
 
   function setupPwaInstall() {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      state.deferredPrompt = e;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+
+    if (isStandalone) {
+      installPwaBtn.style.display = 'none';
+      return;
+    }
+
+    // Show the in-app install action only when Chrome says installation is available.
+    installPwaBtn.style.display = 'none';
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      state.deferredPrompt = event;
       installPwaBtn.style.display = 'inline-flex';
       if (nativeInstallPromptSection) nativeInstallPromptSection.style.display = 'block';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      state.deferredPrompt = null;
+      installPwaBtn.style.display = 'none';
+      if (nativeInstallPromptSection) nativeInstallPromptSection.style.display = 'none';
+      addToPhoneModal.classList.remove('open');
     });
 
     installPwaBtn.addEventListener('click', openAddToPhoneModal);
@@ -492,13 +510,15 @@
     closeInstallBottomBtn.addEventListener('click', () => addToPhoneModal.classList.remove('open'));
 
     if (directInstallBtn) {
-      directInstallBtn.addEventListener('click', () => {
-        if (state.deferredPrompt) {
-          state.deferredPrompt.prompt();
-          state.deferredPrompt.userChoice.then(() => {
-            state.deferredPrompt = null;
-            if (nativeInstallPromptSection) nativeInstallPromptSection.style.display = 'none';
-          });
+      directInstallBtn.addEventListener('click', async () => {
+        const promptEvent = state.deferredPrompt;
+        if (!promptEvent) return;
+        state.deferredPrompt = null;
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          installPwaBtn.style.display = 'none';
+          if (nativeInstallPromptSection) nativeInstallPromptSection.style.display = 'none';
         }
       });
     }
