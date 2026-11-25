@@ -74,7 +74,6 @@
     'AI response was not valid JSON. Please upload a clearer image.':'AI का जवाब सही JSON नहीं है। कृपया अधिक स्पष्ट तस्वीर अपलोड करें।',
     'This room-list batch was already processed.':'इस कमरे की सूची पर पहले ही कार्रवाई हो चुकी है।',
     'Unknown room: ':'अज्ञात कमरा: ','Inventory item missing: ':'इन्वेंटरी आइटम नहीं मिला: '
-  };
 
     "AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.": "AI API key कॉन्फ़िगर नहीं है। सर्वर environment variables में GEMINI_API_KEY (या OPENAI_API_KEY) सेट करें।",
     "Image is too large. Please upload a smaller JPG or PNG.": "तस्वीर बहुत बड़ी है। कृपया छोटी JPG या PNG तस्वीर अपलोड करें।",
@@ -118,6 +117,8 @@
     "മുകളിൽ വലതുവശത്തുള്ള ": "ऊपर दाईं ओर ",
     "കമ്പ്യൂട്ടറിൽ ഡെസ്ക്ടോപ്പ് ആപ്പായി ഇത് പ്രവർത്തിക്കും.": "यह कंप्यूटर पर desktop app की तरह काम करेगा।",
     "ആപ്പ് നിങ്ങളുടെ ഫോണിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്ത് ഒറ്റ ക്ലിക്കിൽ ഉപയോഗിക്കാൻ താഴെ പറയുന്ന സ്റ്റെപ്പുകൾ ചെയ്യുക:": "ऐप को फोन में इंस्टॉल करके एक क्लिक में इस्तेमाल करने के लिए नीचे दिए गए चरण अपनाएँ:",
+  };
+
   const itemHindi = {
     'Broom':'झाड़ू','Mop':'पोछा','Gloves':'दस्ताने','Room freshener':'रूम फ्रेशनर',
     'Toilet roll':'टॉयलेट रोल','Restaurant tissue':'रेस्टोरेंट टिश्यू',
