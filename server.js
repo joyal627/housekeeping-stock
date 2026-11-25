@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -335,6 +336,121 @@ function getLocalIpAddresses() {
     }
   }
   return addresses;
+}
+
+function pngCrc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makePngChunk(type, data) {
+  const typeBuffer = Buffer.from(type, 'ascii');
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const crcInput = Buffer.concat([typeBuffer, data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(pngCrc32(crcInput), 0);
+  return Buffer.concat([length, typeBuffer, data, crc]);
+}
+
+function resizeRgbPng(source, targetSize) {
+  const signature = source.subarray(0, 8);
+  if (!signature.equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    throw new Error('Invalid PNG icon source');
+  }
+
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  const imageData = [];
+
+  while (offset < source.length) {
+    const length = source.readUInt32BE(offset);
+    const type = source.toString('ascii', offset + 4, offset + 8);
+    const data = source.subarray(offset + 8, offset + 8 + length);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === 'IDAT') {
+      imageData.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset += 12 + length;
+  }
+
+  if (!width || !height || bitDepth !== 8 || colorType !== 2) {
+    throw new Error('Unsupported PNG icon format');
+  }
+
+  const bpp = 3;
+  const stride = width * bpp;
+  const inflated = zlib.inflateSync(Buffer.concat(imageData));
+  const pixels = Buffer.alloc(height * stride);
+  let sourceOffset = 0;
+
+  for (let y = 0; y < height; y++) {
+    const filter = inflated[sourceOffset++];
+    const rowOffset = y * stride;
+    for (let x = 0; x < stride; x++) {
+      const raw = inflated[sourceOffset++];
+      const left = x >= bpp ? pixels[rowOffset + x - bpp] : 0;
+      const up = y > 0 ? pixels[rowOffset - stride + x] : 0;
+      const upperLeft = (y > 0 && x >= bpp) ? pixels[rowOffset - stride + x - bpp] : 0;
+      let predictor = 0;
+      if (filter === 1) predictor = left;
+      else if (filter === 2) predictor = up;
+      else if (filter === 3) predictor = Math.floor((left + up) / 2);
+      else if (filter === 4) {
+        const p = left + up - upperLeft;
+        const pa = Math.abs(p - left);
+        const pb = Math.abs(p - up);
+        const pc = Math.abs(p - upperLeft);
+        predictor = pa <= pb && pa <= pc ? left : (pb <= pc ? up : upperLeft);
+      } else if (filter !== 0) {
+        throw new Error('Unsupported PNG row filter');
+      }
+      pixels[rowOffset + x] = (raw + predictor) & 255;
+    }
+  }
+
+  const outStride = targetSize * bpp;
+  const rawOutput = Buffer.alloc(targetSize * (outStride + 1));
+  for (let y = 0; y < targetSize; y++) {
+    const sourceY = Math.min(height - 1, Math.floor(y * height / targetSize));
+    const rowStart = y * (outStride + 1);
+    rawOutput[rowStart] = 0;
+    for (let x = 0; x < targetSize; x++) {
+      const sourceX = Math.min(width - 1, Math.floor(x * width / targetSize));
+      const sourceIndex = sourceY * stride + sourceX * bpp;
+      const targetIndex = rowStart + 1 + x * bpp;
+      pixels.copy(rawOutput, targetIndex, sourceIndex, sourceIndex + bpp);
+    }
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(targetSize, 0);
+  ihdr.writeUInt32BE(targetSize, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    makePngChunk('IHDR', ihdr),
+    makePngChunk('IDAT', zlib.deflateSync(rawOutput)),
+    makePngChunk('IEND', Buffer.alloc(0))
+  ]);
 }
 
 const mimeTypes = {
@@ -794,7 +910,8 @@ const server = http.createServer((req, res) => {
         return;
       }
       try {
-        const png = Buffer.from(encoded.trim(), 'base64');
+        let png = Buffer.from(encoded.trim(), 'base64');
+        if (pathname === '/icons/icon-512.png') png = resizeRgbPng(png, 512);
         res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' });
         res.end(png);
       } catch (_) {
