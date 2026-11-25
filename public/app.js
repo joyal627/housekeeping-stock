@@ -1414,7 +1414,7 @@
           '</p><strong>' + (currentLanguage === 'hi' ? 'स्टॉक की कमी:' : 'Stock shortages:') +
           '</strong><ul>' + shortageList + '</ul></div>';
         confirmRoomBtn.disabled = false;
-        confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'पुष्टि करें और स्टॉक घटाएँ' : (currentLanguage === 'hi' ? 'पुष्टि करें और स्टॉक घटाएँ' : 'Confirm & Deduct Stock');
+        confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'पुष्टि करें और स्टॉक घटाएँ' : 'Confirm & Deduct Stock';
         return;
       }
       roomOcrStatus.textContent = (data.partial
@@ -1429,7 +1429,7 @@
           return escapeHtml(localizedItemName(item ? item.name : id)) + ': ' + qty;
         }).join(' · ') + '</div></div>'
       ).join('');
-      roomReview.innerHTML = '<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>SUCCESSFULLY DEDUCTED</strong><p>Rooms: ' +
+      roomReview.innerHTML = '<div style="color:' + (data.partial ? '#fbbf24' : '#34d399') + ';margin-top:12px;padding:12px;border:1px solid ' + (data.partial ? '#92400e' : '#237a55') + ';border-radius:8px;"><strong>' + (data.partial ? (currentLanguage === 'hi' ? 'आंशिक कटौती पूरी हुई' : 'PARTIAL DEDUCTION COMPLETED') : (currentLanguage === 'hi' ? 'स्टॉक सफलतापूर्वक घटाया गया' : 'SUCCESSFULLY DEDUCTED')) + '</strong><p>' + (currentLanguage === 'hi' ? 'कमरे: ' : 'Rooms: ') +
         escapeHtml(data.rooms.join(', ')) + '</p>' + roomReport + '<p><strong>' + (currentLanguage === 'hi' ? 'कुल घटाया गया स्टॉक:' : 'Total deducted:') + '</strong> ' +
         itemNames.map(escapeHtml).join('<br>') + '</p>' + ((data.skippedItems && data.skippedItems.length) ? '<p><strong>' + tr('skipped') + '</strong></p><ul>' + data.skippedItems.map(x => '<li>' + escapeHtml(localizedItemName(x.name)) + ': ' + (x.deducted || 0) + ' / ' + x.required + ' (' + (x.shortage || x.required) + ' short)</li>').join('') + '</ul>' : '') + '</div>';
       confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'कटौती पूरी' : 'Deduction complete';
