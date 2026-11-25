@@ -733,6 +733,17 @@ const server = http.createServer((req, res) => {
               skippedItems.push({ id, name: item.name, required: requiredQty, available, deducted: deductQty, shortage: requiredQty - deductQty, reason: 'Insufficient stock' });
             }
           }
+          // All-or-nothing stock validation: if ANY required item is short,
+          // stop the whole batch before changing inventory or writing history.
+          if (skippedItems.length > 0) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              success: false, deducted: false, partial: false,
+              message: 'Stock shortage. No items were deducted.',
+              rooms: reviewed, roomDetails, totals: {}, skippedItems, items: appData.items
+            }));
+            return;
+          }
           if (!changes.length) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, deducted: false, partial: false, message: 'No available stock to deduct.', rooms: reviewed, roomDetails, totals: {}, skippedItems, items: appData.items }));
