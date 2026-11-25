@@ -255,14 +255,14 @@
     }
     const perm = Notification.permission;
     if (perm === 'granted') {
-      notifStatusBadge.textContent = '● Active ✓';
+      notifStatusBadge.textContent = '● Active •';
       notifStatusBadge.className = 'status-pill status-granted';
       if (settingsRequestPermissionBtn) {
-        settingsRequestPermissionBtn.textContent = 'Browser Alerts Active ✓';
+        settingsRequestPermissionBtn.textContent = 'Browser Alerts Active •';
         settingsRequestPermissionBtn.style.background = '#10b981';
       }
       enableNotifyBtn.classList.add('active');
-      notifyBtnText.textContent = '🔔 Alerts: Active ✓';
+      notifyBtnText.textContent = '🔔 Alerts: Active •';
     } else if (perm === 'denied') {
       notifStatusBadge.textContent = '● Blocked in Settings';
       notifStatusBadge.className = 'status-pill status-denied';
@@ -348,9 +348,9 @@
         updateNotificationStatusUI();
         if (perm === 'granted') {
           playAlertChime();
-          showToast('✓ Stock alerts turned ON successfully!', '✅');
+          showToast('• Stock alerts turned ON successfully!', '');
           new Notification('Housekeeping Stock Count', {
-            body: '✓ Stock alerts are now active!',
+            body: '• Stock alerts are now active!',
             icon: 'icon.png'
           });
         } else {
@@ -468,7 +468,7 @@
         } catch (e) {}
       } else {
         navigator.clipboard.writeText(shareText).then(() => {
-          alert('✓ Report summary copied to clipboard! You can paste and send it on WhatsApp or Email.');
+          alert('• Report summary copied to clipboard! You can paste and send it on WhatsApp or Email.');
         }).catch(() => {
           prompt('Copy this report text:', shareText);
         });
@@ -487,7 +487,7 @@
 
     let rowsHtml = '';
     if (zeroItems.length === 0) {
-      rowsHtml = `<tr><td colspan="4" style="text-align:center; padding: 24px; color: #34d399;">✓ Great! No items currently have 0 stock.</td></tr>`;
+      rowsHtml = `<tr><td colspan="4" style="text-align:center; padding: 24px; color: #34d399;">• Great! No items currently have 0 stock.</td></tr>`;
     } else {
       rowsHtml = zeroItems.map(item => {
         const countText = item.currentCount === 0 ? `0 ${item.unit}` : `Not counted yet`;
@@ -826,7 +826,7 @@
 
     const saveBtn = document.getElementById(`save-btn-${id}`);
     if (saveBtn) {
-      saveBtn.textContent = '✓ Saved!';
+      saveBtn.textContent = '• Saved!';
       saveBtn.classList.add('saved');
       setTimeout(() => {
         saveBtn.textContent = 'Save count';
@@ -1018,7 +1018,7 @@
     const summaryLine = '<div style="padding:7px 0;color:#94a3b8;font-size:13px;">' +
       (hasErrors
         ? '⚠ <strong style="color:#fbbf24">' + ocrRows.filter(r => isRowError(r)).length + ' issue(s)</strong> found — fix before confirming. ' + (showAllOcrRows ? '' : 'Error rows shown below.')
-        : '✅ <strong style="color:#34d399">All rows OK</strong> — no issues found.') +
+        : ' <strong style="color:#34d399">All rows OK</strong> — no issues found.') +
       ' Total: <strong>' + ocrRows.length + ' rows</strong>, <strong>' + ocrRows.reduce((s,r) => s + r.expandedRoomCount, 0) + ' rooms</strong>.' +
       '</div>';
 
@@ -1031,7 +1031,7 @@
         const countText = Number.isInteger(r.expectedRoomCount)
           ? 'ROOMS column: ' + r.expectedRoomCount + ' | Detected: ' + r.expandedRoomCount + ' ' +
             (r.expectedRoomCount === r.expandedRoomCount
-              ? '✓ Count matches'
+              ? '• Count matches'
               : countDiff <= 2
                 ? 'ℹ Count close (' + r.expandedRoomCount + ' rooms detected)'
                 : '⚠ COUNT MISMATCH — check room numbers')
@@ -1050,7 +1050,7 @@
           '</select></label><div style="padding:8px;color:#cbd5e1;">ETA / Check-in: <strong>' +
           escapeHtml(r.arrivalTime || 'No time found') + '</strong><br>' + escapeHtml(countText) + '</div></div>';
       }).join('') +
-      (displayRows.length === 0 ? '<p style="color:#34d399;padding:12px;">✅ No issues — all rows look good!</p>' : '');
+      (displayRows.length === 0 ? '<p style="color:#34d399;padding:12px;"> No issues — all rows look good!</p>' : '');
 
     const toggleEl = document.getElementById('ocrToggleShowAll');
     if (toggleEl) toggleEl.addEventListener('click', () => { showAllOcrRows = !showAllOcrRows; renderOcrRows(); });
@@ -1129,7 +1129,7 @@
       const usedModel = data.model || 'Gemini AI';
       roomAiNote = `Read directly by ${usedModel} ((AI Vision)). Check every room, status, ETA and ROOMS count before deduction.`;
       roomOcrStatus.textContent = ocrRows.length
-        ? `✓ ${usedModel} found ` + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) + ' room entries across ' + ocrRows.length + ' rows. Review before confirming.'
+        ? `• ${usedModel} found ` + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) + ' room entries across ' + ocrRows.length + ' rows. Review before confirming.'
         : `${usedModel} could not identify room rows. Please upload a clearer rooming sheet.`;
       renderOcrRows();
     } catch (e) {
