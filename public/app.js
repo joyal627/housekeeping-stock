@@ -43,6 +43,56 @@
     }
   };
   const tr = key => (messages[currentLanguage] || messages.en)[key] || messages.en[key] || key;
+
+  // Translate alerts, confirmations, and server-generated error messages too.
+  const errorTranslations = [
+    ['Please enter a valid count number (0 or higher).', 'कृपया सही संख्या दर्ज करें (0 या उससे अधिक)।'],
+    ['Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).', 'कृपया स्टॉक ध्यान से जाँचें। संख्या 1000 या उससे अधिक नहीं हो सकती (अधिकतम सीमा 999 है)।'],
+    ['Please check your stock carefully! Count cannot be more than 1200 for Guest amenities (Maximum allowed is 1200).', 'कृपया स्टॉक ध्यान से जाँचें। अतिथि उपयोग की सामग्री की संख्या 1200 से अधिक नहीं हो सकती।'],
+    ['Server error', 'सर्वर में त्रुटि'],
+    ['Stock item not found.', 'स्टॉक का उत्पाद नहीं मिला।'],
+    ['Item not found', 'उत्पाद नहीं मिला'],
+    ['Invalid count value', 'गिनती का मान सही नहीं है'],
+    ['Image must be 5 MB or smaller.', 'तस्वीर 5 MB या उससे छोटी होनी चाहिए।'],
+    ['Image upload failed. Please try again.', 'तस्वीर अपलोड नहीं हो सकी। कृपया फिर से प्रयास करें।'],
+    ['Image is too large. Please upload a smaller JPG or PNG.', 'तस्वीर बहुत बड़ी है। कृपया छोटी JPG या PNG तस्वीर अपलोड करें।'],
+    ['Please upload a valid JPG, PNG, or WEBP image under 7 MB.', 'कृपया 7 MB से छोटी JPG, PNG या WEBP तस्वीर अपलोड करें।'],
+    ['AI response was not valid JSON. Please upload a clearer image.', 'AI का जवाब सही प्रारूप में नहीं था। कृपया अधिक स्पष्ट तस्वीर अपलोड करें।'],
+    ['AI response was not valid JSON.', 'AI का जवाब सही प्रारूप में नहीं था।'],
+    ['AI image reading failed.', 'AI तस्वीर पढ़ने में विफल रहा।'],
+    ['AI review failed.', 'AI जाँच विफल रही।'],
+    ['OCR text and parsed rows are required.', 'OCR टेक्स्ट और पढ़ी गई पंक्तियाँ आवश्यक हैं।'],
+    ['batchId and reviewed checkout rooms are required', 'बैच आईडी और जाँचे गए चेक-आउट कमरे आवश्यक हैं।'],
+    ['This room-list batch was already processed.', 'कमरों की यह सूची पहले ही संसाधित की जा चुकी है।'],
+    ['No eligible rooms were supplied. Use CK OUT, STAY BACK, or CK IN with an ETA time.', 'कोई योग्य कमरा नहीं दिया गया। CK OUT, STAY BACK या ETA समय वाले CK IN का उपयोग करें।'],
+    ['No available stock to deduct.', 'घटाने के लिए कोई स्टॉक उपलब्ध नहीं है।'],
+    ['AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.', 'AI API कुंजी सेट नहीं है। सर्वर की Environment Variables में GEMINI_API_KEY या OPENAI_API_KEY सेट करें।'],
+    ['Google AI returned an unreadable response.', 'Google AI से पढ़ने योग्य जवाब नहीं मिला।'],
+    ['Google AI returned an empty response.', 'Google AI से खाली जवाब मिला।'],
+    ['OpenAI returned an unreadable response.', 'OpenAI से पढ़ने योग्य जवाब नहीं मिला।'],
+    ['AI image reading failed: ', 'AI तस्वीर पढ़ने में विफल: '],
+    ['Deduction failed: ', 'स्टॉक घटाने में विफल: '],
+    ['Stock was NOT deducted.', 'स्टॉक नहीं घटाया गया।'],
+    ['Please check and save the required stock counts, then try again.', 'कृपया आवश्यक स्टॉक की गिनती जाँचकर सहेजें और फिर प्रयास करें।'],
+    ['Could not read the selected image. Please choose it again.', 'चुनी गई तस्वीर पढ़ी नहीं जा सकी। कृपया फिर से चुनें।'],
+    ['Image data is empty. Please upload again.', 'तस्वीर का डेटा खाली है। कृपया फिर से अपलोड करें।'],
+    ['Gemini could not read the image.', 'Gemini तस्वीर को पढ़ नहीं पाया।'],
+    ['Unknown room: ', 'अज्ञात कमरा: '],
+    ['Inventory item missing: ', 'स्टॉक में उत्पाद मौजूद नहीं है: '],
+    ['Google AI (', 'Google AI ('],
+    [' timed out after ', ' का समय समाप्त हो गया: '],
+    ['OpenAI request timed out after ', ' OpenAI अनुरोध का समय समाप्त हो गया: ']
+  ];
+  function translateMessage(value) {
+    let result = String(value ?? '');
+    if (currentLanguage !== 'hi') return result;
+    for (const [english, hindi] of errorTranslations) result = result.split(english).join(hindi);
+    return result;
+  }
+  const nativeAlert = window.alert.bind(window);
+  const nativeConfirm = window.confirm.bind(window);
+  window.alert = message => nativeAlert(translateMessage(message));
+  window.confirm = message => nativeConfirm(translateMessage(message));
   const hiText = {
     "Housekeeping Stock Count":"हाउसकीपिंग स्टॉक प्रबंधन",
     "Count supplies on schedule and get reminded when a count is due.":"निर्धारित समय पर सामान की गिनती करें और अगली गिनती के लिए सूचना प्राप्त करें।",
@@ -1124,7 +1174,7 @@
     roomReview.innerHTML = '';
     confirmRoomBtn.disabled = true;
     ocrRows = [];
-    roomOcrStatus.textContent = 'Image ready. Tap Read Image (AI).';
+    roomOcrStatus.textContent = currentLanguage === 'hi' ? 'तस्वीर तैयार है। AI से पढ़ने के लिए बटन दबाएँ।' : 'Image ready. Tap Read Image (AI).';
     roomImageInput.selectedRoomFile = file;
   }
   if (roomImageInput) roomImageInput.addEventListener('change', () => handleRoomImageChange(roomImageInput));
@@ -1267,7 +1317,7 @@
         : `${usedModel} could not identify room rows. Please upload a clearer rooming sheet.`;
       renderOcrRows();
     } catch (e) {
-      roomOcrStatus.textContent = 'AI image reading failed: ' + e.message;
+      roomOcrStatus.textContent = translateMessage('AI image reading failed: ' + e.message);
       roomReview.innerHTML = '';
       ocrRows = [];
       confirmRoomBtn.disabled = true;
@@ -1310,7 +1360,7 @@
     if (!confirm(tr('confirm') + roomsToDeduct.length + tr('rooms'))) return;
 
     confirmRoomBtn.disabled = true;
-    confirmRoomBtn.textContent = 'Processing…';
+    confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'प्रक्रिया जारी है…' : 'Processing…';
     roomOcrStatus.textContent = tr('processing');
     try {
       const batchId = 'ocr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
@@ -1352,9 +1402,9 @@
         itemNames.map(escapeHtml).join('<br>') + '</p>' + ((data.skippedItems && data.skippedItems.length) ? '<p><strong>' + tr('skipped') + '</strong></p><ul>' + data.skippedItems.map(x => '<li>' + escapeHtml(x.name) + ': ' + (x.deducted || 0) + ' / ' + x.required + ' (' + (x.shortage || x.required) + ' short)</li>').join('') + '</ul>' : '') + '</div>';
       confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'कटौती पूरी' : 'Deduction complete';
     } catch (e) {
-      roomOcrStatus.textContent = tr('failed') + e.message;
+      roomOcrStatus.textContent = translateMessage(tr('failed') + e.message);
       confirmRoomBtn.disabled = false;
-      confirmRoomBtn.textContent = 'Confirm & Deduct Stock';
+      confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'पुष्टि करें और स्टॉक घटाएँ' : 'Confirm & Deduct Stock';
       alert('Stock was NOT deducted.\n\n' + e.message + '\n\nPlease check and save the required stock counts, then try again.');
     }
   });
