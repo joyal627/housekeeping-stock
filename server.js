@@ -735,7 +735,7 @@ const server = http.createServer((req, res) => {
           }
           if (!changes.length) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, partial: true, message: 'No available stock to deduct.', rooms: reviewed, roomDetails, totals: {}, skippedItems, items: appData.items }));
+            res.end(JSON.stringify({ success: false, deducted: false, partial: false, message: 'No available stock to deduct.', rooms: reviewed, roomDetails, totals: {}, skippedItems, items: appData.items }));
             return;
           }
           const timestamp = new Date().toISOString();
