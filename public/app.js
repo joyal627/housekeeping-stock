@@ -944,12 +944,12 @@
         // Check 5 limit for Chemical supplies or items with maxLimit
         const maxLimit = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
         if (maxLimit && current >= maxLimit) {
-          alert(`⚠️ ERROR: ${item.name} count cannot exceed ${maxLimit}! (മാക്സിമം ${maxLimit} ${item.unit} മാത്രമെ നൽകാവൂ).`);
+      alert(currentLanguage === 'hi' ? `त्रुटि: ${item.name} की संख्या ${maxLimit} ${item.unit} से अधिक नहीं हो सकती।` : `ERROR: ${item.name} count cannot exceed ${maxLimit}!`);
           return;
         }
 
         if (current >= 999) {
-          alert('⚠️ Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).\n\n⚠️ നിങ്ങൾ സ്റ്റോക്ക് കൃത്യമായി പരിശോധിക്കുക! എണ്ണം 1000 അല്ലെങ്കിൽ അതിൽ കൂടുതലോ നൽകാൻ കഴിയില്ല (പരമാവധി 999).');
+      alert(currentLanguage === 'hi' ? 'कृपया स्टॉक ध्यान से जाँचें। संख्या 1000 या उससे अधिक नहीं हो सकती (अधिकतम सीमा 999 है)।' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
           return;
         }
         input.value = current + 1;
@@ -998,13 +998,13 @@
     // Validation 1: Chemical supplies or maxLimit count > 5
     const maxAllowed = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
     if (maxAllowed && num > maxAllowed) {
-      alert(`⚠️ ERROR: ${item.name} count cannot exceed ${maxAllowed}! (${item.name} ന് ${maxAllowed} ${item.unit}-ൽ കൂടുതൽ എണ്ണം നൽകാൻ പാടില്ല).`);
+      alert(currentLanguage === 'hi' ? `त्रुटि: ${item.name} की संख्या ${maxAllowed} ${item.unit} से अधिक नहीं हो सकती।` : `ERROR: ${item.name} count cannot exceed ${maxAllowed}!`);
       return;
     }
 
     // Validation 2: Count >= 1000
     if (num >= 1000) {
-      alert('⚠️ Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).\n\n⚠️ നിങ്ങൾ സ്റ്റോക്ക് കൃത്യമായി പരിശോധിക്കുക! എണ്ണം 1000 അല്ലെങ്കിൽ അതിൽ കൂടുതലോ നൽകാൻ കഴിയില്ല (പരമാവധി 999).');
+      alert(currentLanguage === 'hi' ? 'कृपया स्टॉक ध्यान से जाँचें। संख्या 1000 या उससे अधिक नहीं हो सकती (अधिकतम सीमा 999 है)।' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
       return;
     }
 
@@ -1051,7 +1051,7 @@
     const item = state.items.find(i => i.id === id);
     const itemName = item ? item.name : 'this item';
 
-    const confirmed = confirm(`Are you sure you want to reset the count for "${itemName}"?\n\n"${itemName}" ന്റെ കൗണ്ട് റീസെറ്റ് ചെയ്യണമെന്ന് ഉറപ്പാണോ?`);
+    const confirmed = confirm(currentLanguage === 'hi' ? `क्या आप "${itemName}" की गिनती रीसेट करना चाहते हैं?` : `Are you sure you want to reset the count for "${itemName}"?`);
     if (!confirmed) return;
 
     const input = document.getElementById(`input-${id}`);
