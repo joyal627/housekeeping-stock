@@ -865,12 +865,12 @@
   if (roomUploadBtn && roomGalleryInput) roomUploadBtn.addEventListener('click', () => roomGalleryInput.click());
 
   const validRoomNumbers = new Set([
-    '101','102','103','104','105','106','107','108','109','111','112',
+    '101','102','103','104','105','106','107','108','109','110','111','112',
     '114','115','116','117','118','119','120','121','122','123','124','125',
     '126','127','128','129','131','132','133','134','135','136',
     'A1','A2','D1','D2','TREEHOUSE','CLUBVILLA'
   ]);
-  const roomTokenPattern = '(?:101|102|103|104|105|106|107|108|109|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREE\\s*HOUSE|TREEHOUSE|CLUB\\s*VILLA|CLUBVILLA)';
+  const roomTokenPattern = '(?:101|102|103|104|105|106|107|108|109|110|111|112|114|115|116|117|118|119|120|121|122|123|124|125|126|127|128|129|131|132|133|134|135|136|A1|A2|D1|D2|TREE\\s*HOUSE|TREEHOUSE|CLUB\\s*VILLA|CLUBVILLA)';
   const roomGroupPattern = new RegExp('\\b' + roomTokenPattern + '(?:\\s*[-–/]\\s*' + roomTokenPattern + ')*', 'gi');
 
   function expandRoomGroup(raw) {
