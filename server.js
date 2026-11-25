@@ -37,13 +37,31 @@ const defaultData = {
   history: []
 };
 
+const TMP_DATA_FILE = path.join(os.tmpdir(), 'hk_data.json');
+
+function getDataFilePath() {
+  if (process.env.VERCEL) {
+    if (!fs.existsSync(TMP_DATA_FILE) && fs.existsSync(DATA_FILE)) {
+      try {
+        fs.copyFileSync(DATA_FILE, TMP_DATA_FILE);
+      } catch (_) {}
+    }
+    return TMP_DATA_FILE;
+  }
+  return DATA_FILE;
+}
+
 function loadData() {
   try {
-    if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2), 'utf8');
+    const targetFile = getDataFilePath();
+    if (!fs.existsSync(targetFile)) {
+      if (fs.existsSync(DATA_FILE)) {
+        const raw = fs.readFileSync(DATA_FILE, 'utf8');
+        return JSON.parse(raw);
+      }
       return defaultData;
     }
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const raw = fs.readFileSync(targetFile, 'utf8');
     return JSON.parse(raw);
   } catch (err) {
     console.error("Error reading data file:", err);
@@ -53,10 +71,229 @@ function loadData() {
 
 function saveData(data) {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+    const targetFile = getDataFilePath();
+    fs.writeFileSync(targetFile, JSON.stringify(data, null, 2), 'utf8');
   } catch (err) {
     console.error("Error saving data file:", err);
   }
+}
+
+function callGeminiGenerateContent(model, requestBody, apiKey, timeoutMs = 45000) {
+  return new Promise((resolve, reject) => {
+    const apiReq = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/${model}:generateContent`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+        'Content-Length': Buffer.byteLength(requestBody)
+      }
+    }, apiRes => {
+      let responseText = '';
+      apiRes.on('data', chunk => responseText += chunk);
+      apiRes.on('end', () => {
+        let parsed;
+        try {
+          parsed = JSON.parse(responseText || '{}');
+        } catch (_) {
+          return reject(new Error('Gemini returned an unreadable response.'));
+        }
+        if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
+          const errMsg = (parsed.error && parsed.error.message) || `Gemini API returned status ${apiRes.statusCode}`;
+          const err = new Error(errMsg);
+          err.statusCode = apiRes.statusCode;
+          return reject(err);
+        }
+        resolve(parsed);
+      });
+    });
+    apiReq.setTimeout(timeoutMs, () => apiReq.destroy(new Error(`Gemini request (${model}) timed out after ${timeoutMs / 1000}s.`)));
+    apiReq.on('error', reject);
+    apiReq.write(requestBody);
+    apiReq.end();
+  });
+}
+
+function callOpenAiChat(payloadObj, apiKey, timeoutMs = 45000) {
+  return new Promise((resolve, reject) => {
+    const requestBody = JSON.stringify(payloadObj);
+    const apiReq = https.request({
+      hostname: 'api.openai.com',
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Length': Buffer.byteLength(requestBody)
+      }
+    }, apiRes => {
+      let responseText = '';
+      apiRes.on('data', chunk => responseText += chunk);
+      apiRes.on('end', () => {
+        let parsed;
+        try {
+          parsed = JSON.parse(responseText || '{}');
+        } catch (_) {
+          return reject(new Error('OpenAI returned an unreadable response.'));
+        }
+        if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
+          const errMsg = (parsed.error && parsed.error.message) || `OpenAI returned status ${apiRes.statusCode}`;
+          const err = new Error(errMsg);
+          err.statusCode = apiRes.statusCode;
+          return reject(err);
+        }
+        const text = parsed.choices && parsed.choices[0] && parsed.choices[0].message && parsed.choices[0].message.content;
+        resolve(text || '');
+      });
+    });
+    apiReq.setTimeout(timeoutMs, () => apiReq.destroy(new Error(`OpenAI request timed out after ${timeoutMs / 1000}s.`)));
+    apiReq.on('error', reject);
+    apiReq.write(requestBody);
+    apiReq.end();
+  });
+}
+
+async function executeVisionAiWithFallback(prompt, imageBase64, mimeType) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const openAiKey = process.env.OPENAI_API_KEY;
+
+  if (!geminiKey && !openAiKey) {
+    throw new Error('AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.');
+  }
+
+  const geminiRequestBody = JSON.stringify({
+    contents: [{
+      parts: [
+        { text: prompt },
+        { inlineData: { mimeType: mimeType, data: imageBase64 } }
+      ]
+    }],
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+      maxOutputTokens: 4096
+    }
+  });
+
+  const failureLog = [];
+
+  // Tier 1: Gemini 2.5 Flash (Primary model)
+  if (geminiKey) {
+    try {
+      const res = await callGeminiGenerateContent('gemini-2.5-flash', geminiRequestBody, geminiKey);
+      const text = res.candidates && res.candidates[0] && res.candidates[0].content &&
+        res.candidates[0].content.parts && res.candidates[0].content.parts.map(p => p.text || '').join('');
+      if (text) return { text, model: 'gemini-2.5-flash' };
+    } catch (err) {
+      console.warn(`[AI Vision] gemini-2.5-flash failed (${err.message}). Trying fallback model...`);
+      failureLog.push(`gemini-2.5-flash: ${err.message}`);
+    }
+
+    // Tier 2: Gemini 1.5 Flash (Fallback when Gemini 2.5 has server load or rate limits)
+    try {
+      const res = await callGeminiGenerateContent('gemini-1.5-flash', geminiRequestBody, geminiKey);
+      const text = res.candidates && res.candidates[0] && res.candidates[0].content &&
+        res.candidates[0].content.parts && res.candidates[0].content.parts.map(p => p.text || '').join('');
+      if (text) return { text, model: 'gemini-1.5-flash (load fallback)' };
+    } catch (err) {
+      console.warn(`[AI Vision] gemini-1.5-flash failed (${err.message}). Trying next fallback...`);
+      failureLog.push(`gemini-1.5-flash: ${err.message}`);
+    }
+  }
+
+  // Tier 3: OpenAI GPT-4o-mini Vision (Fallback provider if configured)
+  if (openAiKey) {
+    try {
+      const text = await callOpenAiChat({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: { url: `data:${mimeType};base64,${imageBase64}` }
+              }
+            ]
+          }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+        max_tokens: 4096
+      }, openAiKey);
+      if (text) return { text, model: 'gpt-4o-mini (OpenAI fallback)' };
+    } catch (err) {
+      console.warn(`[AI Vision] OpenAI fallback failed (${err.message}).`);
+      failureLog.push(`openai: ${err.message}`);
+    }
+  }
+
+  throw new Error(`AI reading failed on all providers: ${failureLog.join(' | ')}`);
+}
+
+async function executeTextAiWithFallback(prompt) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const openAiKey = process.env.OPENAI_API_KEY;
+
+  if (!geminiKey && !openAiKey) {
+    throw new Error('AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.');
+  }
+
+  const geminiRequestBody = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+      maxOutputTokens: 2048
+    }
+  });
+
+  const failureLog = [];
+
+  // Tier 1: Gemini 2.5 Flash
+  if (geminiKey) {
+    try {
+      const res = await callGeminiGenerateContent('gemini-2.5-flash', geminiRequestBody, geminiKey);
+      const text = res.candidates && res.candidates[0] && res.candidates[0].content &&
+        res.candidates[0].content.parts && res.candidates[0].content.parts.map(p => p.text || '').join('');
+      if (text) return { text, model: 'gemini-2.5-flash' };
+    } catch (err) {
+      console.warn(`[AI Review] gemini-2.5-flash failed (${err.message}). Trying fallback...`);
+      failureLog.push(`gemini-2.5-flash: ${err.message}`);
+    }
+
+    // Tier 2: Gemini 1.5 Flash
+    try {
+      const res = await callGeminiGenerateContent('gemini-1.5-flash', geminiRequestBody, geminiKey);
+      const text = res.candidates && res.candidates[0] && res.candidates[0].content &&
+        res.candidates[0].content.parts && res.candidates[0].content.parts.map(p => p.text || '').join('');
+      if (text) return { text, model: 'gemini-1.5-flash (load fallback)' };
+    } catch (err) {
+      console.warn(`[AI Review] gemini-1.5-flash failed (${err.message}). Trying next fallback...`);
+      failureLog.push(`gemini-1.5-flash: ${err.message}`);
+    }
+  }
+
+  // Tier 3: OpenAI GPT-4o-mini
+  if (openAiKey) {
+    try {
+      const text = await callOpenAiChat({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+        max_tokens: 2048
+      }, openAiKey);
+      if (text) return { text, model: 'gpt-4o-mini (OpenAI fallback)' };
+    } catch (err) {
+      console.warn(`[AI Review] OpenAI fallback failed (${err.message}).`);
+      failureLog.push(`openai: ${err.message}`);
+    }
+  }
+
+  throw new Error(`AI review failed on all providers: ${failureLog.join(' | ')}`);
 }
 
 let appData = loadData();
@@ -204,8 +441,17 @@ const server = http.createServer((req, res) => {
             return;
           }
 
-          // Error if count is 1000 or more
-          if (numCount >= 1000) {
+          // Guest amenities: max limit 1200
+          if (item.category === 'Guest amenities' && numCount > 1200) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+              error: "Please check your stock carefully! Count cannot be more than 1200 for Guest amenities (Maximum allowed is 1200).\nനിങ്ങൾ സ്റ്റോക്ക് കൃത്യമായി പരിശോധിക്കുക! ഗസ്റ്റ് അമിനിറ്റീസിന് എണ്ണം 1200-ൽ കൂടുതൽ നൽകാൻ കഴിയില്ല (പരമാവധി 1200)." 
+            }));
+            return;
+          }
+
+          // Other items: max limit 999 (cannot be 1000 or more)
+          if (item.category !== 'Guest amenities' && numCount >= 1000) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ 
               error: "Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).\nനിങ്ങൾ സ്റ്റോക്ക് കൃത്യമായി പരിശോധിക്കുക! എണ്ണം 1000 അല്ലെങ്കിൽ അതിൽ കൂടുതലോ നൽകാൻ കഴിയില്ല (പരമാവധി 999)." 
@@ -272,7 +518,7 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // POST /api/housekeeping/ai-read-image - read the rooming-sheet image directly with Gemini Vision
+    // POST /api/housekeeping/ai-read-image - read the rooming-sheet image with Gemini Vision + load fallback
     if (pathname === '/api/housekeeping/ai-read-image' && req.method === 'POST') {
       let body = '';
       req.on('data', chunk => {
@@ -285,11 +531,6 @@ const server = http.createServer((req, res) => {
       });
       req.on('end', async () => {
         try {
-          if (!process.env.GEMINI_API_KEY) {
-            res.writeHead(503, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Gemini API key is not configured on the server.' }));
-            return;
-          }
           const payload = JSON.parse(body || '{}');
           const imageBase64 = typeof payload.imageBase64 === 'string' ? payload.imageBase64 : '';
           const mimeType = ['image/jpeg', 'image/png', 'image/webp'].includes(payload.mimeType) ? payload.mimeType : '';
@@ -310,48 +551,14 @@ const server = http.createServer((req, res) => {
             'Ignore headings, totals, notes, and rows without a room number. Preserve the visual row order.',
             'No stock calculations or deductions.'
           ].join(' ');
-          const requestBody = JSON.stringify({
-            contents: [{ parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mimeType, data: imageBase64 } }
-            ] }],
-            generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 4096 }
-          });
-          const geminiResult = await new Promise((resolve, reject) => {
-            const apiReq = https.request({
-              hostname: 'generativelanguage.googleapis.com',
-              path: '/v1beta/models/gemini-3.8-flash:generateContent',
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': process.env.GEMINI_API_KEY,
-                'Content-Length': Buffer.byteLength(requestBody)
-              }
-            }, apiRes => {
-              let responseText = '';
-              apiRes.on('data', chunk => responseText += chunk);
-              apiRes.on('end', () => {
-                let parsed;
-                try { parsed = JSON.parse(responseText || '{}'); } catch (_) {
-                  return reject(new Error('Gemini returned an unreadable response.'));
-                }
-                if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
-                  return reject(new Error((parsed.error && parsed.error.message) || 'Gemini image reading failed.'));
-                }
-                resolve(parsed);
-              });
-            });
-            apiReq.setTimeout(60000, () => apiReq.destroy(new Error('Gemini image reading timed out. Please try again.')));
-            apiReq.on('error', reject);
-            apiReq.write(requestBody);
-            apiReq.end();
-          });
-          const modelText = geminiResult.candidates && geminiResult.candidates[0] &&
-            geminiResult.candidates[0].content && geminiResult.candidates[0].content.parts &&
-            geminiResult.candidates[0].content.parts.map(part => part.text || '').join('');
+
+          const { text: modelText, model: usedModel } = await executeVisionAiWithFallback(prompt, imageBase64, mimeType);
+
           let aiData;
-          try { aiData = JSON.parse(modelText || '{}'); } catch (_) {
-            throw new Error('Gemini response was not valid JSON. Please upload a clearer image.');
+          try {
+            aiData = JSON.parse(modelText || '{}');
+          } catch (_) {
+            throw new Error('AI response was not valid JSON. Please upload a clearer image.');
           }
           const allowedStatuses = new Set(['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR']);
           const rows = (Array.isArray(aiData.rows) ? aiData.rows : []).slice(0, 80).map(row => ({
@@ -362,18 +569,19 @@ const server = http.createServer((req, res) => {
             confidence: Math.max(0, Math.min(1, Number(row.confidence) || 0)),
             reason: typeof row.reason === 'string' ? row.reason.slice(0, 180) : ''
           })).filter(row => row.roomNumber);
+
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, model: 'gemini-3.8-flash', rows }));
+          res.end(JSON.stringify({ success: true, model: usedModel, rows }));
         } catch (error) {
-          console.error('Gemini rooming-sheet image read failed:', error.message);
+          console.error('Rooming-sheet AI vision read failed:', error.message);
           res.writeHead(502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: error.message || 'Gemini image reading failed.' }));
+          res.end(JSON.stringify({ error: error.message || 'AI image reading failed.' }));
         }
       });
       return;
     }
 
-    // POST /api/housekeeping/ai-review - Gemini assists with OCR status/ETA interpretation only
+    // POST /api/housekeeping/ai-review - Gemini/fallback AI assists with OCR status/ETA interpretation
     if (pathname === '/api/housekeeping/ai-review' && req.method === 'POST') {
       let body = '';
       req.on('data', chunk => {
@@ -382,11 +590,6 @@ const server = http.createServer((req, res) => {
       });
       req.on('end', async () => {
         try {
-          if (!process.env.GEMINI_API_KEY) {
-            res.writeHead(503, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Gemini API key is not configured on the server.' }));
-            return;
-          }
           const payload = JSON.parse(body || '{}');
           const rawText = typeof payload.rawText === 'string' ? payload.rawText.slice(0, 15000) : '';
           const rows = Array.isArray(payload.rows) ? payload.rows.slice(0, 80) : [];
@@ -411,45 +614,14 @@ const server = http.createServer((req, res) => {
               arrivalTime: String(r.arrivalTime || '')
             })))
           ].join('\n\n');
-          const requestBody = JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 2048 }
-          });
-          const geminiResult = await new Promise((resolve, reject) => {
-            const apiReq = https.request({
-              hostname: 'generativelanguage.googleapis.com',
-              path: '/v1beta/models/gemini-3.8-flash:generateContent',
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': process.env.GEMINI_API_KEY,
-                'Content-Length': Buffer.byteLength(requestBody)
-              }
-            }, apiRes => {
-              let responseText = '';
-              apiRes.on('data', chunk => responseText += chunk);
-              apiRes.on('end', () => {
-                let parsed;
-                try { parsed = JSON.parse(responseText || '{}'); } catch (_) {
-                  return reject(new Error('Gemini returned an unreadable response.'));
-                }
-                if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
-                  return reject(new Error((parsed.error && parsed.error.message) || 'Gemini API request failed.'));
-                }
-                resolve(parsed);
-              });
-            });
-            apiReq.setTimeout(25000, () => apiReq.destroy(new Error('Gemini request timed out.')));
-            apiReq.on('error', reject);
-            apiReq.write(requestBody);
-            apiReq.end();
-          });
-          const modelText = geminiResult.candidates && geminiResult.candidates[0] &&
-            geminiResult.candidates[0].content && geminiResult.candidates[0].content.parts &&
-            geminiResult.candidates[0].content.parts.map(part => part.text || '').join('');
+
+          const { text: modelText, model: usedModel } = await executeTextAiWithFallback(prompt);
+
           let aiData;
-          try { aiData = JSON.parse(modelText || '{}'); } catch (_) {
-            throw new Error('Gemini response was not valid JSON.');
+          try {
+            aiData = JSON.parse(modelText || '{}');
+          } catch (_) {
+            throw new Error('AI response was not valid JSON.');
           }
           const allowedStatuses = new Set(['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR']);
           const suggestions = (Array.isArray(aiData.suggestions) ? aiData.suggestions : [])
@@ -461,12 +633,13 @@ const server = http.createServer((req, res) => {
               confidence: Math.max(0, Math.min(1, Number(s.confidence) || 0)),
               reason: typeof s.reason === 'string' ? s.reason.slice(0, 180) : ''
             }));
+
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, model: 'gemini-3.8-flash', suggestions }));
+          res.end(JSON.stringify({ success: true, model: usedModel, suggestions }));
         } catch (error) {
-          console.error('Gemini OCR review failed:', error.message);
+          console.error('AI review failed:', error.message);
           res.writeHead(502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: error.message || 'Gemini AI review failed.' }));
+          res.end(JSON.stringify({ error: error.message || 'AI review failed.' }));
         }
       });
       return;
@@ -583,16 +756,20 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  const lanIps = getLocalIpAddresses();
-  console.log(`\n======================================================`);
-  console.log(`🏠 HOUSEKEEPING STOCK COUNT SERVER RUNNING!`);
-  console.log(`------------------------------------------------------`);
-  console.log(`💻 Local access (This PC):    http://localhost:${PORT}`);
-  if (lanIps.length > 0) {
-    lanIps.forEach(ip => {
-      console.log(`📱 Mobile/Staff WiFi access: http://${ip}:${PORT}`);
-    });
-  }
-  console.log(`======================================================\n`);
-});
+if (!process.env.VERCEL) {
+  server.listen(PORT, '0.0.0.0', () => {
+    const lanIps = getLocalIpAddresses();
+    console.log(`\n======================================================`);
+    console.log(`🏠 HOUSEKEEPING STOCK COUNT SERVER RUNNING!`);
+    console.log(`------------------------------------------------------`);
+    console.log(`💻 Local access (This PC):    http://localhost:${PORT}`);
+    if (lanIps.length > 0) {
+      lanIps.forEach(ip => {
+        console.log(`📱 Mobile/Staff WiFi access: http://${ip}:${PORT}`);
+      });
+    }
+    console.log(`======================================================\n`);
+  });
+}
+
+module.exports = server;

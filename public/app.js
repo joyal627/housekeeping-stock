@@ -1021,13 +1021,14 @@
           countMismatch: Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount !== uniqueRooms.length
         };
       }).filter(row => row.roomNumbers.length);
-      roomAiNote = 'Read directly by Gemini AI (no Tesseract OCR). Check every room, status, ETA and ROOMS count before deduction.';
+      const usedModel = data.model || 'Gemini AI';
+      roomAiNote = `Read directly by ${usedModel} (no Tesseract OCR). Check every room, status, ETA and ROOMS count before deduction.`;
       roomOcrStatus.textContent = ocrRows.length
-        ? 'Gemini AI found ' + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) + ' unique room entries. Review before confirming.'
-        : 'Gemini AI could not identify room rows. Please upload a clearer rooming sheet.';
+        ? `✓ ${usedModel} found ` + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) + ' unique room entries. Review before confirming.'
+        : `${usedModel} could not identify room rows. Please upload a clearer rooming sheet.`;
       renderOcrRows();
     } catch (e) {
-      roomOcrStatus.textContent = 'Gemini AI image reading failed: ' + e.message;
+      roomOcrStatus.textContent = 'AI image reading failed: ' + e.message;
       roomReview.innerHTML = '';
       ocrRows = [];
       confirmRoomBtn.disabled = true;
