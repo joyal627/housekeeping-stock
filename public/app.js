@@ -594,19 +594,33 @@
     });
 
     // Test Alert Button
-    testAlertBtn.addEventListener('click', () => {
+    testAlertBtn.addEventListener('click', async () => {
       playAlertChime();
       const guestItems = state.items.filter(i => i.category === 'Guest amenities');
       const guestTotal = guestItems.reduce((sum, i) => sum + (i.currentCount || 0), 0);
       const zeroCount = state.items.filter(i => i.currentCount === 0 || i.currentCount === null).length;
-      
       showToast(`🔔 Test Alert! Amenities: ${guestTotal} pcs | Need count: ${zeroCount}`, '🔔');
-
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('🔔 Housekeeping Stock Alert', {
+        new Notification('Housekeeping Stock Alert', {
           body: `Stock Alert Working! Amenities: ${guestTotal} pcs | Items to count: ${zeroCount}`,
-          icon: 'icon.png'
+          icon: '/icons/icon-192.png'
         });
+      }
+      if (localStorage.getItem('hk_push_enabled') === 'true') {
+        const token = window.prompt('Enter the PUSH_TEST_TOKEN configured by the administrator:');
+        if (!token) return;
+        try {
+          const response = await fetch('/api/push/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-push-test-token': token },
+            body: JSON.stringify({ title: 'Housekeeping Stock Test', body: 'Web Push notifications are working.', url: '/' })
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Push test failed.');
+          showToast(`Push test sent: ${result.sent}/${result.total}`, '🔔');
+        } catch (error) {
+          showToast(error.message || 'Push test failed.', '⚠️');
+        }
       }
     });
 
