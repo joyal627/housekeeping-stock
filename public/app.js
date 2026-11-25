@@ -1359,7 +1359,7 @@
           ', Available: ' + (x.available || 0) + ', Short: ' + (x.shortage || x.required) + '</li>'
         ).join('');
         roomOcrStatus.textContent = currentLanguage === 'hi'
-          ? 'Deduction unsuccessful: oru item-ilum stock deduct cheythilla.'
+          ? 'Deduction unsuccessful: no stock was deducted.'
           : 'Deduction unsuccessful: no stock was deducted.';
         roomReview.innerHTML = '<div style="color:#fca5a5;margin-top:12px;padding:12px;border:1px solid #7f1d1d;border-radius:8px;"><strong>' +
           (currentLanguage === 'hi' ? 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE' : 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE') +
