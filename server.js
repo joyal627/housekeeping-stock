@@ -758,7 +758,7 @@ const server = http.createServer((req, res) => {
           appData.housekeeping.deductions = appData.housekeeping.deductions.slice(0, 200);
           saveData(appData);
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, rooms: reviewed, roomDetails, totals, items: appData.items }));
+          res.end(JSON.stringify({ success: true, partial: skippedItems.length > 0, rooms: reviewed, roomDetails, totals: deductedTotals, skippedItems, items: appData.items }));
         } catch (e) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: e.message }));
