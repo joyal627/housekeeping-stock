@@ -76,6 +76,48 @@
     'Unknown room: ':'अज्ञात कमरा: ','Inventory item missing: ':'इन्वेंटरी आइटम नहीं मिला: '
   };
 
+    "AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.": "AI API key कॉन्फ़िगर नहीं है। सर्वर environment variables में GEMINI_API_KEY (या OPENAI_API_KEY) सेट करें।",
+    "Image is too large. Please upload a smaller JPG or PNG.": "तस्वीर बहुत बड़ी है। कृपया छोटी JPG या PNG तस्वीर अपलोड करें।",
+    "Please upload a valid JPG, PNG, or WEBP image under 7 MB.": "कृपया 7 MB से छोटी सही JPG, PNG या WEBP तस्वीर अपलोड करें।",
+    "AI image reading failed.": "AI तस्वीर पढ़ने में विफल रहा।",
+    "AI review failed.": "AI समीक्षा विफल रही।",
+    "Image ready. AI reading-in Read Image button click cheyyuka.": "Image ready. Tap Read Image (AI).",
+    "ERROR: ": "त्रुटि: ",
+    "count cannot exceed": "की गिनती इससे अधिक नहीं हो सकती",
+    "Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).": "कृपया स्टॉक ध्यान से जाँचें। गिनती 1000 या उससे अधिक नहीं हो सकती (अधिकतम 999)।",
+    "Are you sure you want to reset the count for ": "क्या आप इस आइटम की गिनती रीसेट करना चाहते हैं: ",
+    "DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE": "कटौती विफल — स्टॉक की कमी",
+    "Oru item-il ninnum stock deduct cheythittilla.": "किसी भी आइटम का स्टॉक नहीं घटाया गया।",
+    "Stock shortages:": "स्टॉक की कमी:",
+    "Stock shortage undu. Onnum deduct cheythittilla. ": "स्टॉक की कमी है। कोई भी स्टॉक नहीं घटाया गया। ",
+    "DEDUCTION STOPPED — STOCK SHORTAGE": "कटौती रोक दी गई — स्टॉक की कमी",
+    "STOCK SUCCESSFULLY DEDUCTED": "स्टॉक सफलतापूर्वक घटाया गया",
+    "Rooms: ": "कमरे: ",
+    "Total deducted:": "कुल घटाया गया:",
+    "Deduction complete": "कटौती पूरी हुई",
+    "Process cheyyunnu…": "प्रोसेस हो रहा है…",
+    "Chrome-ൽ മുകൾ ഭാഗത്തുള്ള വെബ്സൈറ്റ് URL-ന് ഇടത് വശത്തുള്ള ": "Chrome में वेबसाइट URL के बाईं ओर ऊपर ",
+    " ഐക്കണിൽ ക്ലിക്ക് ചെയ്യുക.": " आइकन पर क्लिक करें।",
+    " (അനുമതികൾ) -> ": " (अनुमतियाँ) -> ",
+    " തിരഞ്ഞെടുക്കുക.": " चुनें।",
+    " ആക്കി മാറ്റുക.": " में बदलें।",
+    "കൂടാതെ ഫോൺ Settings -> Apps -> Chrome -> Notifications ON ആണെന്ന് ഉറപ്പുവരുത്തുക.": "साथ ही फोन Settings -> Apps -> Chrome -> Notifications को ON रखें।",
+    "Safari-യിൽ ആദ്യം ": "Safari में पहले ",
+    " വഴി ഈ ആപ്പ് ഫോൺ ഹോം സ്ക്രീനിലേക്ക് ചേർക്കുക.": " के ज़रिए इस ऐप को फोन की होम स्क्रीन पर जोड़ें।",
+    "iPhone-ന്റെ പ്രധാന ": "iPhone की मुख्य ",
+    " തുറന്ന് ": " खोलें और ",
+    " അല്ലെങ്കിൽ ": " या ",
+    " ഓൺ ചെയ്യുക.": " चालू करें।",
+    "ബ്രൗസറിന്റെ അഡ്രസ്സ് ബാറിലുള്ള ": "ब्राउज़र के address bar में ",
+    " എന്നതിന് നേരെയുള്ള സ്വിച്ച് ": " के सामने वाला switch ",
+    "ബ്രൗസറിൽ മുകളിൽ വലത് വശത്തുള്ള ": "ब्राउज़र में ऊपर दाईं ओर ",
+    "ക്ലിക്ക് ചെയ്യുക.": "क्लिक करें।",
+    "വരുന്ന മെനുവിൽ നിന്ന് ": "दिखने वाले menu से ",
+    "ക്ലിക്ക് ചെയ്യുക. ഫോണിന്റെ സ്ക്രീനിൽ ഈ ആപ്പിന്റെ ഐക്കൺ റെഡിയാകും!": "क्लिक करें। फोन की स्क्रीन पर ऐप का आइकन दिखाई देगा!",
+    "താഴേക്ക് സ്ക്രോൾ ചെയ്ത് ": "नीचे scroll करके ",
+    "മുകളിൽ വലതുവശത്തുള്ള ": "ऊपर दाईं ओर ",
+    "കമ്പ്യൂട്ടറിൽ ഡെസ്ക്ടോപ്പ് ആപ്പായി ഇത് പ്രവർത്തിക്കും.": "यह कंप्यूटर पर desktop app की तरह काम करेगा।",
+    "ആപ്പ് നിങ്ങളുടെ ഫോണിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്ത് ഒറ്റ ക്ലിക്കിൽ ഉപയോഗിക്കാൻ താഴെ പറയുന്ന സ്റ്റെപ്പുകൾ ചെയ്യുക:": "ऐप को फोन में इंस्टॉल करके एक क्लिक में इस्तेमाल करने के लिए नीचे दिए गए चरण अपनाएँ:",
   const itemHindi = {
     'Broom':'झाड़ू','Mop':'पोछा','Gloves':'दस्ताने','Room freshener':'रूम फ्रेशनर',
     'Toilet roll':'टॉयलेट रोल','Restaurant tissue':'रेस्टोरेंट टिश्यू',
@@ -866,12 +908,12 @@
         // Check 5 limit for Chemical supplies or items with maxLimit
         const maxLimit = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
         if (maxLimit && current >= maxLimit) {
-      alert(currentLanguage === 'hi' ? `ERROR: ${item.name} count ${maxLimit}-il kooduthal aakaruthu.` : `ERROR: ${item.name} count cannot exceed ${maxLimit}!`);
+      alert(currentLanguage === 'hi' ? `ERROR: ${item.name} count cannot exceed ${maxLimit}!` : `ERROR: ${item.name} count cannot exceed ${maxLimit}!`);
           return;
         }
 
         if (current >= 999) {
-      alert(currentLanguage === 'hi' ? 'Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
+      alert(currentLanguage === 'hi' ? 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
           return;
         }
         input.value = current + 1;
@@ -920,13 +962,13 @@
     // Validation 1: Chemical supplies or maxLimit count > 5
     const maxAllowed = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
     if (maxAllowed && num > maxAllowed) {
-      alert(currentLanguage === 'hi' ? `ERROR: ${item.name} count ${maxAllowed}-il kooduthal aakaruthu.` : `ERROR: ${item.name} count cannot exceed ${maxAllowed}!`);
+      alert(currentLanguage === 'hi' ? `ERROR: ${item.name} count cannot exceed ${maxAllowed}!` : `ERROR: ${item.name} count cannot exceed ${maxAllowed}!`);
       return;
     }
 
     // Validation 2: Count >= 1000
     if (num >= 1000) {
-      alert(currentLanguage === 'hi' ? 'Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
+      alert(currentLanguage === 'hi' ? 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
       return;
     }
 
@@ -973,7 +1015,7 @@
     const item = state.items.find(i => i.id === id);
     const itemName = item ? item.name : 'this item';
 
-    const confirmed = confirm(currentLanguage === 'hi' ? `"${itemName}" count reset cheyyano?` : `Are you sure you want to reset the count for "${itemName}"?`);
+    const confirmed = confirm(currentLanguage === 'hi' ? `Are you sure you want to reset the count for "${itemName}"?` : `Are you sure you want to reset the count for "${itemName}"?`);
     if (!confirmed) return;
 
     const input = document.getElementById(`input-${id}`);
@@ -1096,7 +1138,7 @@
     roomReview.innerHTML = '';
     confirmRoomBtn.disabled = true;
     ocrRows = [];
-    roomOcrStatus.textContent = currentLanguage === 'hi' ? 'Image ready. AI reading-in Read Image button click cheyyuka.' : 'Image ready. Tap Read Image (AI).';
+    roomOcrStatus.textContent = currentLanguage === 'hi' ? 'Image ready. Tap Read Image (AI).' : 'Image ready. Tap Read Image (AI).';
     roomImageInput.selectedRoomFile = file;
   }
   if (roomImageInput) roomImageInput.addEventListener('change', () => handleRoomImageChange(roomImageInput));
@@ -1282,7 +1324,7 @@
     if (!confirm(tr('confirm') + roomsToDeduct.length + tr('rooms'))) return;
 
     confirmRoomBtn.disabled = true;
-    confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'Process cheyyunnu…' : 'Processing…';
+    confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'Processing…' : 'Processing…';
     roomOcrStatus.textContent = tr('processing');
     try {
       const batchId = 'ocr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
@@ -1320,15 +1362,15 @@
           : 'Deduction unsuccessful: no stock was deducted.';
         roomReview.innerHTML = '<div style="color:#fca5a5;margin-top:12px;padding:12px;border:1px solid #7f1d1d;border-radius:8px;"><strong>' +
           (currentLanguage === 'hi' ? 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE' : 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE') +
-          '</strong><p>' + (currentLanguage === 'hi' ? 'Oru item-il ninnum stock deduct cheythittilla.' : 'No product stock was deducted.') +
-          '</p><strong>' + (currentLanguage === 'hi' ? 'Stock shortage:' : 'Stock shortages:') +
+          '</strong><p>' + (currentLanguage === 'hi' ? 'No product stock was deducted.' : 'No product stock was deducted.') +
+          '</p><strong>' + (currentLanguage === 'hi' ? 'Stock shortages:' : 'Stock shortages:') +
           '</strong><ul>' + shortageList + '</ul></div>';
         confirmRoomBtn.disabled = false;
         confirmRoomBtn.textContent = 'Confirm & Deduct Stock';
         return;
       }
       roomOcrStatus.textContent = (data.partial
-        ? (currentLanguage === 'hi' ? 'Stock shortage undu. Onnum deduct cheythittilla. ' : 'Stock shortage found. Nothing was deducted. ')
+        ? (currentLanguage === 'hi' ? 'Stock shortage found. Nothing was deducted. ' : 'Stock shortage found. Nothing was deducted. ')
         : '') + tr('success') + data.rooms.length + tr('roomsUpdated');
       const roomReport = (data.roomDetails || []).map(room =>
         '<div style="padding:8px;margin:6px 0;background:#0b1722;border-radius:6px;"><strong>' +
