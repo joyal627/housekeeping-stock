@@ -4,13 +4,13 @@
   let currentLanguage = localStorage.getItem('hk_language') || 'en';
   const messages = {
     en: {
-      selectImage: tr('selectImage'),
-      validImage: tr('validImage'),
-      largeImage: tr('largeImage'),
+      selectImage: 'Please select a rooming-sheet image.',
+      validImage: 'Please upload a JPG, PNG, or WEBP image.',
+      largeImage: 'Image is too large. Please upload an image under 7 MB.',
       reading: 'AI is reading the rooming sheet image…',
-      processing: tr('processing'),
-      unclear: tr('unclear'),
-      noRooms: tr('noRooms'),
+      processing: 'Checking stock and processing deduction…',
+      unclear: 'Resolve unclear rows before confirming.',
+      noRooms: 'No eligible rooms found. A CK IN room must have an ETA time.',
       confirm: 'Confirm supply deduction for ',
       rooms: ' rooms?',
       success: 'Stock deduction completed for ',
@@ -1080,15 +1080,15 @@
     const file = roomImageInput.selectedRoomFile || (roomImageInput.files && roomImageInput.files[0]) ||
       (roomGalleryInput && roomGalleryInput.files && roomGalleryInput.files[0]);
     if (!file) {
-      roomOcrStatus.textContent = 'Please select a rooming-sheet image.';
+      roomOcrStatus.textContent = tr('selectImage');
       return;
     }
     if (!file.type || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      roomOcrStatus.textContent = 'Please upload a JPG, PNG, or WEBP image.';
+      roomOcrStatus.textContent = tr('validImage');
       return;
     }
     if (file.size > 7 * 1024 * 1024) {
-      roomOcrStatus.textContent = 'Image is too large. Please upload an image under 7 MB.';
+      roomOcrStatus.textContent = tr('largeImage');
       return;
     }
     roomOcrBtn.disabled = true;
@@ -1144,7 +1144,7 @@
 
   if (confirmRoomBtn) confirmRoomBtn.addEventListener('click', async () => {
     if (!ocrRows.length || ocrRows.some(r => r.status === 'NOT CLEAR' || !r.roomNumber || (Number.isInteger(r.expectedRoomCount) && Math.abs(r.expectedRoomCount - r.expandedRoomCount) > 2))) {
-      alert('Resolve unclear rows before confirming.');
+      alert(tr('unclear'));
       return;
     }
     const eligible = ocrRows.filter(r =>
@@ -1152,7 +1152,7 @@
       (r.status === 'CK IN' && !!r.arrivalTime)
     );
     if (!eligible.length) {
-      alert('No eligible rooms found. A CK IN room must have an ETA time.');
+      alert(tr('noRooms'));
       return;
     }
 
@@ -1177,7 +1177,7 @@
 
     confirmRoomBtn.disabled = true;
     confirmRoomBtn.textContent = 'Processing…';
-    roomOcrStatus.textContent = 'Checking stock and processing deduction…';
+    roomOcrStatus.textContent = tr('processing');
     try {
       const batchId = 'ocr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
       const res = await fetch('/api/housekeeping/deduct', {
@@ -1190,7 +1190,7 @@
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Deduction failed');
+      if (!res.ok) throw new Error(data.error || tr('failed'));
 
       if (Array.isArray(data.items)) {
         state.items = data.items;
