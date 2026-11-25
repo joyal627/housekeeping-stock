@@ -685,7 +685,7 @@ const server = http.createServer((req, res) => {
       req.on('end', () => {
         try {
           const payload = JSON.parse(body || '{}');
-          const { batchId, rooms, staffName } = payload;
+          const { batchId, rooms } = payload;
           if (!batchId || typeof batchId !== 'string' || !Array.isArray(rooms) || !rooms.length) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'batchId and reviewed checkout rooms are required' }));
@@ -718,32 +718,42 @@ const server = http.createServer((req, res) => {
           }
           if (!reviewed.length) throw new Error('No eligible rooms were supplied. Use CK OUT, STAY BACK, or CK IN with an ETA time.');
           const changes = [];
-          for (const [id, qty] of Object.entries(totals)) {
+          const skippedItems = [];
+          for (const [id, requiredQty] of Object.entries(totals)) {
             const item = appData.items.find(i => i.id === id);
             if (!item) throw new Error('Inventory item missing: ' + id);
-            if (item.currentCount === null || item.currentCount === undefined || !Number.isInteger(item.currentCount)) {
-              throw new Error('STOCK NOT COUNTED - ' + item.name + '. Stock count cheythittilla. Please count this item first.');
+            const available = Number.isInteger(item.currentCount) ? item.currentCount : 0;
+            if (available <= 0) {
+              skippedItems.push({ id, name: item.name, required: requiredQty, available: 0, reason: 'No stock available' });
+              continue;
             }
-            if (item.currentCount < qty) {
-              throw new Error('INSUFFICIENT STOCK - ' + item.name + '. Required: ' + qty + ', available: ' + item.currentCount);
+            const deductQty = Math.min(available, requiredQty);
+            changes.push({ item, qty: deductQty, requiredQty, previousCount: available });
+            if (deductQty < requiredQty) {
+              skippedItems.push({ id, name: item.name, required: requiredQty, available, deducted: deductQty, shortage: requiredQty - deductQty, reason: 'Insufficient stock' });
             }
-            changes.push({ item, qty, previousCount: item.currentCount });
+          }
+          if (!changes.length) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, partial: true, message: 'No available stock to deduct.', rooms: reviewed, roomDetails, totals: {}, skippedItems, items: appData.items }));
+            return;
           }
           const timestamp = new Date().toISOString();
+          const deductedTotals = {};
           for (const change of changes) {
             change.item.currentCount -= change.qty;
             change.item.lastCountedAt = timestamp;
-            change.item.countedBy = staffName && String(staffName).trim() ? String(staffName).trim() : 'Staff';
+            deductedTotals[change.item.id] = change.qty;
             if (!appData.history) appData.history = [];
             appData.history.unshift({
               timestamp, itemId: change.item.id, itemName: change.item.name,
               previousCount: change.previousCount, newCount: change.item.currentCount,
-              staffName: change.item.countedBy, action: 'room_supply_deduction',
-              batchId, quantityUsed: change.qty, rooms: reviewed
+              action: 'room_supply_deduction',
+              batchId, quantityUsed: change.qty, requiredQuantity: change.requiredQty, rooms: reviewed
             });
           }
           appData.housekeeping.processedBatches.push(batchId);
-          appData.housekeeping.deductions.unshift({ batchId, timestamp, rooms: reviewed, totals, staffName: staffName || 'Staff' });
+          appData.housekeeping.deductions.unshift({ batchId, timestamp, rooms: reviewed, totals: deductedTotals, skippedItems });
           appData.housekeeping.processedBatches = appData.housekeeping.processedBatches.slice(-500);
           appData.housekeeping.deductions = appData.housekeeping.deductions.slice(0, 200);
           saveData(appData);
