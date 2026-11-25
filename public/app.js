@@ -353,6 +353,22 @@
     }
   }
 
+  function base64UrlToUint8Array(value) { const pad = '='.repeat((4 - value.length % 4) % 4); const raw = atob((value + pad).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, c => c.charCodeAt(0)); }
+  async function enableWebPush() {
+    if (!('Notification' in window) || !('PushManager' in window) || !('serviceWorker' in navigator)) throw new Error('Web Push is not supported in this browser.');
+    const permission = await Notification.requestPermission(); if (permission !== 'granted') throw new Error('Notification permission was not granted.');
+    const registration = await navigator.serviceWorker.ready;
+    const keyResponse = await fetch('/api/push/vapid-public-key', { cache: 'no-store' }); const keyData = await keyResponse.json(); if (!keyResponse.ok) throw new Error(keyData.error || 'Could not load VAPID key.');
+    let subscription = await registration.pushManager.getSubscription(); if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToUint8Array(keyData.publicKey) });
+    const saved = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON() }) }); const savedData = await saved.json(); if (!saved.ok) throw new Error(savedData.error || 'Could not save subscription.');
+    localStorage.setItem('hk_push_enabled', 'true'); localStorage.removeItem('hk_push_banner_dismissed'); const banner = document.getElementById('webPushBanner'); if (banner) banner.hidden = true; updateNotificationStatusUI(); return true;
+  }
+  function setupWebPushBanner() {
+    const banner = document.getElementById('webPushBanner'); const turnOn = document.getElementById('webPushTurnOn'); const later = document.getElementById('webPushLater'); if (!banner || !turnOn || !later) return;
+    const supported = 'Notification' in window && 'PushManager' in window && 'serviceWorker' in navigator; if (supported && Notification.permission === 'default' && localStorage.getItem('hk_push_banner_dismissed') !== 'true') banner.hidden = false;
+    later.addEventListener('click', () => { localStorage.setItem('hk_push_banner_dismissed', 'true'); banner.hidden = true; });
+    turnOn.addEventListener('click', async () => { turnOn.disabled = true; try { await enableWebPush(); showToast('Push notifications enabled.', '🔔'); } catch (e) { showToast(e.message || 'Could not enable notifications.', '⚠️'); } finally { turnOn.disabled = false; turnOn.textContent = 'Turn On'; } });
+  }
   // Web Audio Synthesizer Chime
   function playAlertChime() {
     if (localStorage.getItem('hk_sound_enabled') === 'false') return;
@@ -559,6 +575,7 @@
       }
       try {
         const perm = await Notification.requestPermission();
+        if (perm === 'granted') await enableWebPush();
         updateNotificationStatusUI();
         if (perm === 'granted') {
           playAlertChime();
