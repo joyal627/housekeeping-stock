@@ -73,7 +73,7 @@
     'No available stock to deduct.':'घटाने के लिए कोई स्टॉक उपलब्ध नहीं है।',
     'AI response was not valid JSON. Please upload a clearer image.':'AI का जवाब सही JSON नहीं है। कृपया अधिक स्पष्ट तस्वीर अपलोड करें।',
     'This room-list batch was already processed.':'इस कमरे की सूची पर पहले ही कार्रवाई हो चुकी है।',
-    'Unknown room: ':'अज्ञात कमरा: ','Inventory item missing: ':'इन्वेंटरी आइटम नहीं मिला: '
+    'Unknown room: ':'अज्ञात कमरा: ','Inventory item missing: ':'इन्वेंटरी आइटम नहीं मिला: ',
 
     "AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.": "AI API key कॉन्फ़िगर नहीं है। सर्वर environment variables में GEMINI_API_KEY (या OPENAI_API_KEY) सेट करें।",
     "Image is too large. Please upload a smaller JPG or PNG.": "तस्वीर बहुत बड़ी है। कृपया छोटी JPG या PNG तस्वीर अपलोड करें।",
