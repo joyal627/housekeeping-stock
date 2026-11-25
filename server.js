@@ -99,11 +99,12 @@ function extractTextFromInteractionResponse(parsed) {
   return '';
 }
 
-function callGeminiInteractionsApi(model, inputParts, apiKey, timeoutMs = 45000) {
+function callGeminiInteractionsApi(model, inputParts, apiKey, timeoutMs = 90000) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
       model: model,
       input: inputParts,
+      generation_config: { thinking_level: 'low' },
       response_format: {
         type: 'text',
         mime_type: 'application/json'
@@ -148,6 +149,29 @@ function callGeminiInteractionsApi(model, inputParts, apiKey, timeoutMs = 45000)
     apiReq.write(payload);
     apiReq.end();
   });
+}
+
+
+async function callGeminiWithRetry(model, inputParts, apiKey, maxRetries = 2) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await callGeminiInteractionsApi(model, inputParts, apiKey, 90000);
+    } catch (err) {
+      const isRetryable =
+        err.statusCode === 503 ||
+        err.statusCode === 429 ||
+        err.code === 'ETIMEDOUT' ||
+        /timed?\s*out|timeout/i.test(err.message || '');
+
+      if (!isRetryable || attempt >= maxRetries) throw err;
+
+      const backoffMs = 1000 * Math.pow(2, attempt);
+      const jitterMs = Math.floor(Math.random() * 501);
+      const delayMs = backoffMs + jitterMs;
+      console.warn(`[Gemini] ${model} retry ${attempt + 1}/${maxRetries} after ${delayMs}ms: ${err.message}`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
 }
 
 function callOpenAiChat(payloadObj, apiKey, timeoutMs = 45000) {
@@ -198,65 +222,42 @@ async function executeVisionAiWithFallback(prompt, imageBase64, mimeType) {
   }
 
   const interactionsInput = [
-    {
-      type: 'image',
-      mime_type: mimeType,
-      data: imageBase64
-    },
-    {
-      type: 'text',
-      text: prompt
-    }
+    { type: 'image', mime_type: mimeType, data: imageBase64 },
+    { type: 'text', text: prompt }
+  ];
+  const failureLog = [];
+  const geminiModels = [
+    'gemini-4-hydrogen',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-3.8-flash'
   ];
 
-  const failureLog = [];
-
-  // Tier 1: Gemini 3.8 Flash via modern Google Interactions API
   if (geminiKey) {
-    try {
-      const text = await callGeminiInteractionsApi('gemini-3.8-flash', interactionsInput, geminiKey);
-      if (text) return { text, model: 'gemini-3.8-flash' };
-    } catch (err) {
-      console.warn(`[AI Vision] gemini-3.8-flash failed (${err.message}). Trying fallback model...`);
-      failureLog.push(`gemini-3.8-flash: ${err.message}`);
-    }
-
-    // Tier 2: Gemini 3.5 Flash Lite (Fast throughput fallback)
-    try {
-      const text = await callGeminiInteractionsApi('gemini-3.5-flash-lite', interactionsInput, geminiKey);
-      if (text) return { text, model: 'gemini-3.5-flash-lite (load fallback)' };
-    } catch (err) {
-      console.warn(`[AI Vision] gemini-3.5-flash-lite failed (${err.message}). Trying next fallback...`);
-      failureLog.push(`gemini-3.5-flash-lite: ${err.message}`);
-    }
-
-    // Tier 3: Gemini 3.6 Flash fallback
-    try {
-      const text = await callGeminiInteractionsApi('gemini-3.6-flash', interactionsInput, geminiKey);
-      if (text) return { text, model: 'gemini-3.6-flash (fallback)' };
-    } catch (err) {
-      console.warn(`[AI Vision] gemini-3.6-flash failed (${err.message}).`);
-      failureLog.push(`gemini-3.6-flash: ${err.message}`);
+    for (const model of geminiModels) {
+      try {
+        const text = await callGeminiWithRetry(model, interactionsInput, geminiKey);
+        if (text) return { text, model };
+        failureLog.push(`${model}: empty response`);
+      } catch (err) {
+        console.warn(`[AI Vision] ${model} failed (${err.message}). Trying next model...`);
+        failureLog.push(`${model}: ${err.message}`);
+      }
     }
   }
 
-  // Tier 4: OpenAI GPT-4o-mini Vision (Fallback provider if configured)
   if (openAiKey) {
     try {
       const text = await callOpenAiChat({
         model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              {
-                type: 'image_url',
-                image_url: { url: `data:${mimeType};base64,${imageBase64}` }
-              }
-            ]
-          }
-        ],
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
+          ]
+        }],
         response_format: { type: 'json_object' },
         temperature: 0.1,
         max_tokens: 4096
@@ -279,36 +280,29 @@ async function executeTextAiWithFallback(prompt) {
     throw new Error('AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.');
   }
 
-  const interactionsInput = [
-    {
-      type: 'text',
-      text: prompt
-    }
+  const interactionsInput = [{ type: 'text', text: prompt }];
+  const failureLog = [];
+  const geminiModels = [
+    'gemini-4-hydrogen',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-3.8-flash'
   ];
 
-  const failureLog = [];
-
-  // Tier 1: Gemini 3.8 Flash via modern Google Interactions API
   if (geminiKey) {
-    try {
-      const text = await callGeminiInteractionsApi('gemini-3.8-flash', interactionsInput, geminiKey);
-      if (text) return { text, model: 'gemini-3.8-flash' };
-    } catch (err) {
-      console.warn(`[AI Review] gemini-3.8-flash failed (${err.message}). Trying fallback...`);
-      failureLog.push(`gemini-3.8-flash: ${err.message}`);
-    }
-
-    // Tier 2: Gemini 3.5 Flash Lite
-    try {
-      const text = await callGeminiInteractionsApi('gemini-3.5-flash-lite', interactionsInput, geminiKey);
-      if (text) return { text, model: 'gemini-3.5-flash-lite (load fallback)' };
-    } catch (err) {
-      console.warn(`[AI Review] gemini-3.5-flash-lite failed (${err.message}). Trying next fallback...`);
-      failureLog.push(`gemini-3.5-flash-lite: ${err.message}`);
+    for (const model of geminiModels) {
+      try {
+        const text = await callGeminiWithRetry(model, interactionsInput, geminiKey);
+        if (text) return { text, model };
+        failureLog.push(`${model}: empty response`);
+      } catch (err) {
+        console.warn(`[AI Review] ${model} failed (${err.message}). Trying next model...`);
+        failureLog.push(`${model}: ${err.message}`);
+      }
     }
   }
 
-  // Tier 3: OpenAI GPT-4o-mini
   if (openAiKey) {
     try {
       const text = await callOpenAiChat({
