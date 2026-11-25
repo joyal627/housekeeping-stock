@@ -320,7 +320,7 @@ body {
   color: #34d399 !important;
 }
 .warning-empty::before {
-  content: "✓" !important;
+  content: "•" !important;
   color: #34d399 !important;
 }
 
