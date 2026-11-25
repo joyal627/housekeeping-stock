@@ -78,16 +78,46 @@ function saveData(data) {
   }
 }
 
-function callGeminiGenerateContent(model, requestBody, apiKey, timeoutMs = 45000) {
+function extractTextFromInteractionResponse(parsed) {
+  if (typeof parsed.output_text === 'string' && parsed.output_text.trim()) {
+    return parsed.output_text.trim();
+  }
+  if (Array.isArray(parsed.steps)) {
+    for (const step of parsed.steps) {
+      if (step.type === 'model_output' && Array.isArray(step.content)) {
+        for (const c of step.content) {
+          if (c.type === 'text' && c.text) {
+            return c.text.trim();
+          }
+        }
+      }
+    }
+  }
+  if (parsed.candidates && parsed.candidates[0] && parsed.candidates[0].content && parsed.candidates[0].content.parts) {
+    return parsed.candidates[0].content.parts.map(p => p.text || '').join('').trim();
+  }
+  return '';
+}
+
+function callGeminiInteractionsApi(model, inputParts, apiKey, timeoutMs = 45000) {
   return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      model: model,
+      input: inputParts,
+      response_format: {
+        type: 'text',
+        mime_type: 'application/json'
+      }
+    });
+
     const apiReq = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${model}:generateContent`,
+      path: '/v1beta/interactions',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': apiKey,
-        'Content-Length': Buffer.byteLength(requestBody)
+        'Content-Length': Buffer.byteLength(payload)
       }
     }, apiRes => {
       let responseText = '';
@@ -97,20 +127,25 @@ function callGeminiGenerateContent(model, requestBody, apiKey, timeoutMs = 45000
         try {
           parsed = JSON.parse(responseText || '{}');
         } catch (_) {
-          return reject(new Error('Gemini returned an unreadable response.'));
+          return reject(new Error('Google AI returned an unreadable response.'));
         }
         if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
-          const errMsg = (parsed.error && parsed.error.message) || `Gemini API returned status ${apiRes.statusCode}`;
+          const errMsg = (parsed.error && parsed.error.message) || `Google AI returned status ${apiRes.statusCode}`;
           const err = new Error(errMsg);
           err.statusCode = apiRes.statusCode;
           return reject(err);
         }
-        resolve(parsed);
+        const text = extractTextFromInteractionResponse(parsed);
+        if (!text) {
+          return reject(new Error('Google AI returned an empty response.'));
+        }
+        resolve(text);
       });
     });
-    apiReq.setTimeout(timeoutMs, () => apiReq.destroy(new Error(`Gemini request (${model}) timed out after ${timeoutMs / 1000}s.`)));
+
+    apiReq.setTimeout(timeoutMs, () => apiReq.destroy(new Error(`Google AI (${model}) timed out after ${timeoutMs / 1000}s.`)));
     apiReq.on('error', reject);
-    apiReq.write(requestBody);
+    apiReq.write(payload);
     apiReq.end();
   });
 }
@@ -162,47 +197,50 @@ async function executeVisionAiWithFallback(prompt, imageBase64, mimeType) {
     throw new Error('AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.');
   }
 
-  const geminiRequestBody = JSON.stringify({
-    contents: [{
-      parts: [
-        { text: prompt },
-        { inlineData: { mimeType: mimeType, data: imageBase64 } }
-      ]
-    }],
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-      maxOutputTokens: 4096
+  const interactionsInput = [
+    {
+      type: 'image',
+      mime_type: mimeType,
+      data: imageBase64
+    },
+    {
+      type: 'text',
+      text: prompt
     }
-  });
+  ];
 
   const failureLog = [];
 
-  // Tier 1: Gemini 2.5 Flash (Primary model)
+  // Tier 1: Gemini 3.8 Flash via modern Google Interactions API
   if (geminiKey) {
     try {
-      const res = await callGeminiGenerateContent('gemini-2.5-flash', geminiRequestBody, geminiKey);
-      const text = res.candidates && res.candidates[0] && res.candidates[0].content &&
-        res.candidates[0].content.parts && res.candidates[0].content.parts.map(p => p.text || '').join('');
-      if (text) return { text, model: 'gemini-2.5-flash' };
+      const text = await callGeminiInteractionsApi('gemini-3.8-flash', interactionsInput, geminiKey);
+      if (text) return { text, model: 'gemini-3.8-flash' };
     } catch (err) {
-      console.warn(`[AI Vision] gemini-2.5-flash failed (${err.message}). Trying fallback model...`);
-      failureLog.push(`gemini-2.5-flash: ${err.message}`);
+      console.warn(`[AI Vision] gemini-3.8-flash failed (${err.message}). Trying fallback model...`);
+      failureLog.push(`gemini-3.8-flash: ${err.message}`);
     }
 
-    // Tier 2: Gemini 1.5 Flash (Fallback when Gemini 2.5 has server load or rate limits)
+    // Tier 2: Gemini 3.5 Flash Lite (Fast throughput fallback)
     try {
-      const res = await callGeminiGenerateContent('gemini-1.5-flash', geminiRequestBody, geminiKey);
-      const text = res.candidates && res.candidates[0] && res.candidates[0].content &&
-        res.candidates[0].content.parts && res.candidates[0].content.parts.map(p => p.text || '').join('');
-      if (text) return { text, model: 'gemini-1.5-flash (load fallback)' };
+      const text = await callGeminiInteractionsApi('gemini-3.5-flash-lite', interactionsInput, geminiKey);
+      if (text) return { text, model: 'gemini-3.5-flash-lite (load fallback)' };
     } catch (err) {
-      console.warn(`[AI Vision] gemini-1.5-flash failed (${err.message}). Trying next fallback...`);
-      failureLog.push(`gemini-1.5-flash: ${err.message}`);
+      console.warn(`[AI Vision] gemini-3.5-flash-lite failed (${err.message}). Trying next fallback...`);
+      failureLog.push(`gemini-3.5-flash-lite: ${err.message}`);
+    }
+
+    // Tier 3: Gemini 3.6 Flash fallback
+    try {
+      const text = await callGeminiInteractionsApi('gemini-3.6-flash', interactionsInput, geminiKey);
+      if (text) return { text, model: 'gemini-3.6-flash (fallback)' };
+    } catch (err) {
+      console.warn(`[AI Vision] gemini-3.6-flash failed (${err.message}).`);
+      failureLog.push(`gemini-3.6-flash: ${err.message}`);
     }
   }
 
-  // Tier 3: OpenAI GPT-4o-mini Vision (Fallback provider if configured)
+  // Tier 4: OpenAI GPT-4o-mini Vision (Fallback provider if configured)
   if (openAiKey) {
     try {
       const text = await callOpenAiChat({
@@ -241,38 +279,32 @@ async function executeTextAiWithFallback(prompt) {
     throw new Error('AI API key is not configured. Please set GEMINI_API_KEY (or OPENAI_API_KEY) in server environment variables.');
   }
 
-  const geminiRequestBody = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-      maxOutputTokens: 2048
+  const interactionsInput = [
+    {
+      type: 'text',
+      text: prompt
     }
-  });
+  ];
 
   const failureLog = [];
 
-  // Tier 1: Gemini 2.5 Flash
+  // Tier 1: Gemini 3.8 Flash via modern Google Interactions API
   if (geminiKey) {
     try {
-      const res = await callGeminiGenerateContent('gemini-2.5-flash', geminiRequestBody, geminiKey);
-      const text = res.candidates && res.candidates[0] && res.candidates[0].content &&
-        res.candidates[0].content.parts && res.candidates[0].content.parts.map(p => p.text || '').join('');
-      if (text) return { text, model: 'gemini-2.5-flash' };
+      const text = await callGeminiInteractionsApi('gemini-3.8-flash', interactionsInput, geminiKey);
+      if (text) return { text, model: 'gemini-3.8-flash' };
     } catch (err) {
-      console.warn(`[AI Review] gemini-2.5-flash failed (${err.message}). Trying fallback...`);
-      failureLog.push(`gemini-2.5-flash: ${err.message}`);
+      console.warn(`[AI Review] gemini-3.8-flash failed (${err.message}). Trying fallback...`);
+      failureLog.push(`gemini-3.8-flash: ${err.message}`);
     }
 
-    // Tier 2: Gemini 1.5 Flash
+    // Tier 2: Gemini 3.5 Flash Lite
     try {
-      const res = await callGeminiGenerateContent('gemini-1.5-flash', geminiRequestBody, geminiKey);
-      const text = res.candidates && res.candidates[0] && res.candidates[0].content &&
-        res.candidates[0].content.parts && res.candidates[0].content.parts.map(p => p.text || '').join('');
-      if (text) return { text, model: 'gemini-1.5-flash (load fallback)' };
+      const text = await callGeminiInteractionsApi('gemini-3.5-flash-lite', interactionsInput, geminiKey);
+      if (text) return { text, model: 'gemini-3.5-flash-lite (load fallback)' };
     } catch (err) {
-      console.warn(`[AI Review] gemini-1.5-flash failed (${err.message}). Trying next fallback...`);
-      failureLog.push(`gemini-1.5-flash: ${err.message}`);
+      console.warn(`[AI Review] gemini-3.5-flash-lite failed (${err.message}). Trying next fallback...`);
+      failureLog.push(`gemini-3.5-flash-lite: ${err.message}`);
     }
   }
 
