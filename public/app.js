@@ -1,75 +1,162 @@
 // Housekeeping Stock Count Application
 (function () {
   const languageSelect = document.getElementById('languageSelect');
-  let currentLanguage = ['en', 'ml'].includes(localStorage.getItem('hk_language'))
+  let currentLanguage = ['en', 'hi'].includes(localStorage.getItem('hk_language'))
     ? localStorage.getItem('hk_language') : 'en';
-  const messages = {
-    en: {
-      selectImage: 'Please select a rooming-sheet image.',
-      validImage: 'Please upload a JPG, PNG, or WEBP image.',
-      largeImage: 'Image is too large. Please upload an image under 7 MB.',
-      reading: 'AI is reading the rooming sheet image…',
-      processing: 'Checking stock and processing deduction…',
-      unclear: 'Resolve unclear rows before confirming.',
-      noRooms: 'No eligible rooms found. A CK IN room must have an ETA time.',
-      confirm: 'Confirm supply deduction for ',
-      rooms: ' rooms?',
-      success: 'Stock deduction completed for ',
-      roomsUpdated: ' rooms. Available stock has been updated.',
-      partial: 'Deduction stopped. Stock shortage found; no items were deducted.',
-      failed: 'Deduction failed: ',
-      noStock: 'No stock available for ',
-      skipped: 'Stock shortage: ',
-      saved: 'Saved',
-      save: 'Save count'
-    },
-    ml: {
-      selectImage: 'Rooming sheet image select cheyyuka.',
-      validImage: 'JPG, PNG allenkil WEBP image upload cheyyuka.',
-      largeImage: '7 MB-il thazhe ulla image upload cheyyuka.',
-      reading: 'AI rooming sheet vayikkunnu…',
-      processing: 'Stock check cheyth deduction process cheyyunnu…',
-      unclear: 'Confirm cheyyunnathinu munpu unclear rows correct cheyyuka.',
-      noRooms: 'Eligible rooms kandethiyilla. CK IN room-in ETA time venam.',
-      confirm: 'Ee rooms-inulla supplies deduct cheyyatte: ',
-      rooms: ' rooms?',
-      success: 'Stock deduction complete: ',
-      roomsUpdated: ' rooms. Available stock update cheythu.',
-      partial: 'Deduction nirthi. Stock shortage undu; oru item polum deduct cheythittilla.',
-      failed: 'Deduction failed: ',
-      noStock: 'Stock available alla: ',
-      skipped: 'Stock shortage: ',
-      saved: 'Saved',
-      save: 'Save count'
-    }
+
+  const hindi = {
+    'Language':'भाषा','Housekeeping Stock Count':'हाउसकीपिंग स्टॉक गणना',
+    'Count supplies on schedule and get reminded when a count is due.':'निर्धारित समय पर सामान की गिनती करें और अगली गिनती का रिमाइंडर पाएं।',
+    'Zero Stock Report':'शून्य स्टॉक रिपोर्ट','Alerts & Settings':'अलर्ट और सेटिंग्स',
+    'Add to Phone':'फोन में जोड़ें','Guest Amenities Warning:':'अतिथि सुविधाओं की चेतावनी:',
+    'Total stock (min 500)':'कुल स्टॉक (न्यूनतम 500)','Items tracked':'ट्रैक किए गए आइटम',
+    'To count now':'अभी गिनती करनी है','AI Rooming Sheet Reader':'AI रूमिंग शीट रीडर',
+    'Upload the daily rooming-sheet image. Check every extracted room/status before confirming stock deduction.':'रोज़ की रूमिंग शीट की तस्वीर अपलोड करें। स्टॉक घटाने की पुष्टि से पहले हर कमरे और स्थिति की जाँच करें।',
+    'AI Scan (Camera)':'AI स्कैन (कैमरा)','Upload Image':'तस्वीर अपलोड करें','Read Image (AI)':'तस्वीर पढ़ें (AI)',
+    'No image processed.':'अभी कोई तस्वीर प्रोसेस नहीं हुई।','Confirm & Deduct Stock':'पुष्टि करें और स्टॉक घटाएँ',
+    'Back':'वापस','Print':'प्रिंट','Share Report':'रिपोर्ट साझा करें','Download CSV':'CSV डाउनलोड करें',
+    'Stock Alerts & Settings':'स्टॉक अलर्ट और सेटिंग्स','Browser / Phone Notifications':'ब्राउज़र / फोन नोटिफिकेशन',
+    'Checking...':'जाँच हो रही है...','Get instant alerts when Guest Amenities drop below 500 or when cleaning supplies run out.':'अतिथि सुविधाओं का स्टॉक 500 से कम होने या सफाई का सामान खत्म होने पर तुरंत अलर्ट पाएं।',
+    'Turn On Browser Alerts':'ब्राउज़र अलर्ट चालू करें','Test Alert & Sound':'अलर्ट और आवाज़ जाँचें',
+    'In-App Warning Chime & Sound':'ऐप में चेतावनी की आवाज़','Play warning sound for zero & low stock':'शून्य और कम स्टॉक पर चेतावनी की आवाज़ चलाएँ',
+    'How to Enable in Phone / Browser Settings':'फोन / ब्राउज़र सेटिंग्स में कैसे चालू करें',
+    'If notifications are blocked or not appearing, follow these simple steps to turn them on in your phone:':'यदि नोटिफिकेशन ब्लॉक हैं या दिखाई नहीं दे रहे हैं, तो उन्हें चालू करने के लिए ये चरण अपनाएँ:',
+    'Android (Chrome)':'Android (Chrome)','iPhone (Safari)':'iPhone (Safari)','PC / Mac':'PC / Mac',
+    'Done':'हो गया','Add to Phone Home Screen':'फोन की होम स्क्रीन पर जोड़ें',
+    'Install Housekeeping App Now':'हाउसकीपिंग ऐप अभी इंस्टॉल करें','Android':'Android','iPhone / iPad':'iPhone / iPad','Laptop / PC':'लैपटॉप / PC',
+    'Save count':'गिनती सेव करें','Reset':'रीसेट','Count needed':'गिनती आवश्यक','Not counted yet':'अभी गिनती नहीं हुई',
+    'Counted':'गिनती पूरी','Cleaning supplies':'सफाई का सामान','Chemical supplies':'रासायनिक सामान','Guest amenities':'अतिथि सुविधाएँ',
+    'pcs':'नग','boxes':'डिब्बे','Great! No items currently have 0 stock.':'बहुत अच्छा! किसी भी आइटम का स्टॉक शून्य नहीं है।',
+    'Not counted yet':'अभी गिनती नहीं हुई','Out of Stock (0)':'स्टॉक खत्म (0)',
+    'Report Date:':'रिपोर्ट की तारीख:','Items with 0 or uncounted stock:':'शून्य या बिना गिनती वाले आइटम:',
+    'Item Name':'आइटम का नाम','Category':'श्रेणी','Current Count':'मौजूदा गिनती','Status':'स्थिति',
+    'All supplies counted! Stock levels are sufficient.':'सभी सामान की गिनती हो गई! स्टॉक पर्याप्त है।',
+    'Count needed':'गिनती आवश्यक','Not counted yet':'अभी गिनती नहीं हुई','Click to view':'देखने के लिए क्लिक करें',
+    'Please select a rooming-sheet image.':'कृपया रूमिंग शीट की तस्वीर चुनें।',
+    'Please upload a JPG, PNG, or WEBP image.':'कृपया JPG, PNG या WEBP तस्वीर अपलोड करें।',
+    'Image is too large. Please upload an image under 7 MB.':'तस्वीर बहुत बड़ी है। कृपया 7 MB से छोटी तस्वीर अपलोड करें।',
+    'AI is reading the rooming sheet image…':'AI रूमिंग शीट की तस्वीर पढ़ रहा है…',
+    'Checking stock and processing deduction…':'स्टॉक जाँचा जा रहा है और कटौती की जा रही है…',
+    'Resolve unclear rows before confirming.':'पुष्टि से पहले अस्पष्ट पंक्तियों को ठीक करें।',
+    'No eligible rooms found. A CK IN room must have an ETA time.':'कोई योग्य कमरा नहीं मिला। CK IN कमरे के लिए ETA समय आवश्यक है।',
+    'Confirm supply deduction for ':'इन कमरों के लिए सामान की कटौती की पुष्टि करें: ',
+    ' rooms?':' कमरे?',
+    'Stock deduction completed for ':'इन कमरों के लिए स्टॉक कटौती पूरी हुई: ',
+    ' rooms. Available stock has been updated.':' कमरे। उपलब्ध स्टॉक अपडेट कर दिया गया है।',
+    'Deduction stopped. Stock shortage found; no items were deducted.':'कटौती रोक दी गई। स्टॉक कम है; कोई भी आइटम नहीं घटाया गया।',
+    'Deduction failed: ':'कटौती विफल: ','No stock available for ':'स्टॉक उपलब्ध नहीं है: ',
+    'Stock shortage: ':'स्टॉक की कमी: ','Saved':'सेव हो गया','Processing…':'प्रोसेस हो रहा है…',
+    'Image ready. Tap Read Image (AI).':'तस्वीर तैयार है। Read Image (AI) दबाएँ।',
+    'AI Rooming Sheet Reader - Review':'AI रूमिंग शीट रीडर - समीक्षा',
+    'Errors only':'केवल त्रुटियाँ','Show all rooms':'सभी कमरे दिखाएँ','issue':'समस्या','issues':'समस्याएँ',
+    'found — fix before confirming.':'मिलीं — पुष्टि से पहले ठीक करें।','Error rows shown below.':'त्रुटि वाली पंक्तियाँ नीचे दिखाई गई हैं।',
+    'All rows OK':'सभी पंक्तियाँ ठीक हैं','no issues found.':'कोई समस्या नहीं मिली।','Total:':'कुल:',
+    'rows':'पंक्तियाँ','rooms':'कमरे','ROOMS column: ':'कमरों का कॉलम: ',' | Detected: ':' | पहचाने गए: ',
+    '• Count matches':'• गिनती मेल खाती है','ℹ Count close (':'ℹ गिनती लगभग सही (',' rooms detected)':' कमरे पहचाने गए)',
+    '⚠ COUNT MISMATCH — check room numbers':'⚠ गिनती मेल नहीं खाती — कमरे के नंबर जाँचें',
+    'Detected rooms: ':'पहचाने गए कमरे: ','Rooms (':'कमरे (','Room(s)':'कमरा/कमरे',
+    'ETA / Check-in:':'ETA / चेक-इन:','No time found':'समय नहीं मिला',
+    'No issues — all rows look good!':'कोई समस्या नहीं — सभी पंक्तियाँ सही हैं!',
+    'AI image reading failed: ':'AI तस्वीर पढ़ने में विफल: ',
+    'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE':'कटौती विफल — स्टॉक की कमी',
+    'No product stock was deducted.':'किसी भी सामान का स्टॉक नहीं घटाया गया।',
+    'Stock shortages:':'स्टॉक की कमी:','Required:':'आवश्यक:','Available:':'उपलब्ध:','Short:':'कम:',
+    'Deduction unsuccessful: no stock was deducted.':'कटौती विफल: कोई स्टॉक नहीं घटाया गया।',
+    'STOCK SUCCESSFULLY DEDUCTED':'स्टॉक सफलतापूर्वक घटाया गया',
+    'Rooms: ':'कमरे: ','Total deducted:':'कुल घटाया गया:','Deduction complete':'कटौती पूरी हुई',
+    'Stock was NOT deducted.':'स्टॉक नहीं घटाया गया।',
+    'Please check and save the required stock counts, then try again.':'कृपया आवश्यक स्टॉक की गिनती जाँचकर सेव करें और फिर कोशिश करें।',
+    'Please enter a valid count number (0 or higher).':'कृपया सही गिनती दर्ज करें (0 या उससे अधिक)।',
+    'Server error':'सर्वर त्रुटि','Are you sure you want to reset the count for ':'क्या आप इस आइटम की गिनती रीसेट करना चाहते हैं: ',
+    'count cannot exceed':'की गिनती इससे अधिक नहीं हो सकती','Please check your stock carefully!':'कृपया अपने स्टॉक की सावधानी से जाँच करें!',
+    'Count cannot be 1000 or more (Maximum allowed is 999).':'गिनती 1000 या उससे अधिक नहीं हो सकती (अधिकतम 999)।',
+    'No available stock to deduct.':'घटाने के लिए कोई स्टॉक उपलब्ध नहीं है।',
+    'AI response was not valid JSON. Please upload a clearer image.':'AI का जवाब सही JSON नहीं है। कृपया अधिक स्पष्ट तस्वीर अपलोड करें।',
+    'This room-list batch was already processed.':'इस कमरे की सूची पर पहले ही कार्रवाई हो चुकी है।',
+    'Unknown room: ':'अज्ञात कमरा: ','Inventory item missing: ':'इन्वेंटरी आइटम नहीं मिला: '
   };
-  const tr = key => (messages[currentLanguage] || messages.en)[key] || messages.en[key] || key;
-  const localizedItemName = name => name;
-  const localizedCategory = name => name;
-  const localizedUnit = unit => unit;
+
+  const itemHindi = {
+    'Broom':'झाड़ू','Mop':'पोछा','Gloves':'दस्ताने','Room freshener':'रूम फ्रेशनर',
+    'Toilet roll':'टॉयलेट रोल','Restaurant tissue':'रेस्टोरेंट टिश्यू',
+    'Garbage cover small':'छोटा कचरा बैग','Garbage cover big':'बड़ा कचरा बैग',
+    'Floor cleaner':'फ्लोर क्लीनर','Glass cleaner':'ग्लास क्लीनर',
+    'Dental kit':'डेंटल किट','Shaving kit':'शेविंग किट','Shower cap':'शावर कैप',
+    'Soap':'साबुन','Shampoo':'शैम्पू','Moisturiser':'मॉइस्चराइज़र'
+  };
+
+  const tr = key => currentLanguage === 'hi' ? (hindi[key] || key) : key;
+  const localizedItemName = name => currentLanguage === 'hi' ? (itemHindi[name] || name) : name;
+  const localizedCategory = name => tr(name);
+  const localizedUnit = unit => currentLanguage === 'hi' ? ({pcs:'नग',boxes:'डिब्बे'}[unit] || unit) : unit;
+
   function translateMessage(value) {
-    const text = String(value ?? '');
-    if (currentLanguage === 'en') return text;
+    let text = String(value ?? '');
+    if (currentLanguage !== 'hi') return text;
+    for (const [english, translated] of Object.entries(hindi)) {
+      if (english) text = text.split(english).join(translated);
+    }
+    for (const [english, translated] of Object.entries(itemHindi)) {
+      text = text.split(english).join(translated);
+    }
     return text
-      .replaceAll('Stock was NOT deducted.', 'Stock deduct cheythittilla.')
-      .replaceAll('Please check and save the required stock counts, then try again.', 'Required stock count check cheyth save cheythittu veendum try cheyyuka.')
-      .replaceAll('No available stock to deduct.', 'Deduct cheyyan stock available alla.')
-      .replaceAll('Insufficient stock', 'Stock insufficient aanu')
-      .replaceAll('No stock available', 'Stock available alla')
-      .replaceAll('Deduction failed: ', 'Deduction failed: ');
+      .replaceAll('Required:', 'आवश्यक:')
+      .replaceAll('Available:', 'उपलब्ध:')
+      .replaceAll('Short:', 'कम:')
+      .replaceAll('Insufficient stock', 'स्टॉक अपर्याप्त है')
+      .replaceAll('No stock available', 'स्टॉक उपलब्ध नहीं है');
   }
+
+  function translateDom(root = document) {
+    if (currentLanguage !== 'hi') return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => {
+      const original = node.nodeValue;
+      const trimmed = original.trim();
+      if (!trimmed) return;
+      const translated = translateMessage(trimmed);
+      if (translated !== trimmed) node.nodeValue = original.replace(trimmed, translated);
+    });
+    root.querySelectorAll?.('[title],[aria-label],[placeholder]').forEach(el => {
+      ['title','aria-label','placeholder'].forEach(attr => {
+        const value = el.getAttribute(attr);
+        if (value) el.setAttribute(attr, translateMessage(value));
+      });
+    });
+  }
+
   const nativeAlert = window.alert.bind(window);
   const nativeConfirm = window.confirm.bind(window);
   window.alert = message => nativeAlert(translateMessage(message));
   window.confirm = message => nativeConfirm(translateMessage(message));
+
   if (languageSelect) {
     languageSelect.value = currentLanguage;
     languageSelect.addEventListener('change', () => {
-      currentLanguage = languageSelect.value === 'ml' ? 'ml' : 'en';
+      currentLanguage = languageSelect.value === 'hi' ? 'hi' : 'en';
       localStorage.setItem('hk_language', currentLanguage);
       location.reload();
     });
   }
+  translateDom();
+  new MutationObserver(records => {
+    if (currentLanguage !== 'hi') return;
+    records.forEach(record => {
+      if (record.type === 'childList') record.addedNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const translated = translateMessage(node.nodeValue);
+          if (translated !== node.nodeValue) node.nodeValue = translated;
+        } else if (node.nodeType === Node.ELEMENT_NODE) translateDom(node);
+      });
+      else if (record.type === 'characterData') {
+        const translated = translateMessage(record.target.nodeValue);
+        if (translated !== record.target.nodeValue) record.target.nodeValue = translated;
+      }
+    });
+  }).observe(document.body, {subtree:true, childList:true, characterData:true});
+
 
   let state = {
     minTotalStock: 500,
@@ -779,12 +866,12 @@
         // Check 5 limit for Chemical supplies or items with maxLimit
         const maxLimit = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
         if (maxLimit && current >= maxLimit) {
-      alert(currentLanguage === 'ml' ? `ERROR: ${item.name} count ${maxLimit}-il kooduthal aakaruthu.` : `ERROR: ${item.name} count cannot exceed ${maxLimit}!`);
+      alert(currentLanguage === 'hi' ? `ERROR: ${item.name} count ${maxLimit}-il kooduthal aakaruthu.` : `ERROR: ${item.name} count cannot exceed ${maxLimit}!`);
           return;
         }
 
         if (current >= 999) {
-      alert(currentLanguage === 'ml' ? 'Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
+      alert(currentLanguage === 'hi' ? 'Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
           return;
         }
         input.value = current + 1;
@@ -833,13 +920,13 @@
     // Validation 1: Chemical supplies or maxLimit count > 5
     const maxAllowed = item ? (item.maxLimit || (item.category === 'Chemical supplies' ? 5 : null)) : null;
     if (maxAllowed && num > maxAllowed) {
-      alert(currentLanguage === 'ml' ? `ERROR: ${item.name} count ${maxAllowed}-il kooduthal aakaruthu.` : `ERROR: ${item.name} count cannot exceed ${maxAllowed}!`);
+      alert(currentLanguage === 'hi' ? `ERROR: ${item.name} count ${maxAllowed}-il kooduthal aakaruthu.` : `ERROR: ${item.name} count cannot exceed ${maxAllowed}!`);
       return;
     }
 
     // Validation 2: Count >= 1000
     if (num >= 1000) {
-      alert(currentLanguage === 'ml' ? 'Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
+      alert(currentLanguage === 'hi' ? 'Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
       return;
     }
 
@@ -886,7 +973,7 @@
     const item = state.items.find(i => i.id === id);
     const itemName = item ? item.name : 'this item';
 
-    const confirmed = confirm(currentLanguage === 'ml' ? `"${itemName}" count reset cheyyano?` : `Are you sure you want to reset the count for "${itemName}"?`);
+    const confirmed = confirm(currentLanguage === 'hi' ? `"${itemName}" count reset cheyyano?` : `Are you sure you want to reset the count for "${itemName}"?`);
     if (!confirmed) return;
 
     const input = document.getElementById(`input-${id}`);
@@ -1009,7 +1096,7 @@
     roomReview.innerHTML = '';
     confirmRoomBtn.disabled = true;
     ocrRows = [];
-    roomOcrStatus.textContent = currentLanguage === 'ml' ? 'Image ready. AI reading-in Read Image button click cheyyuka.' : 'Image ready. Tap Read Image (AI).';
+    roomOcrStatus.textContent = currentLanguage === 'hi' ? 'Image ready. AI reading-in Read Image button click cheyyuka.' : 'Image ready. Tap Read Image (AI).';
     roomImageInput.selectedRoomFile = file;
   }
   if (roomImageInput) roomImageInput.addEventListener('change', () => handleRoomImageChange(roomImageInput));
@@ -1195,7 +1282,7 @@
     if (!confirm(tr('confirm') + roomsToDeduct.length + tr('rooms'))) return;
 
     confirmRoomBtn.disabled = true;
-    confirmRoomBtn.textContent = currentLanguage === 'ml' ? 'Process cheyyunnu…' : 'Processing…';
+    confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'Process cheyyunnu…' : 'Processing…';
     roomOcrStatus.textContent = tr('processing');
     try {
       const batchId = 'ocr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
@@ -1228,20 +1315,20 @@
           '<li>' + escapeHtml(localizedItemName(x.name)) + ' — Required: ' + x.required +
           ', Available: ' + (x.available || 0) + ', Short: ' + (x.shortage || x.required) + '</li>'
         ).join('');
-        roomOcrStatus.textContent = currentLanguage === 'ml'
+        roomOcrStatus.textContent = currentLanguage === 'hi'
           ? 'Deduction unsuccessful: oru item-ilum stock deduct cheythilla.'
           : 'Deduction unsuccessful: no stock was deducted.';
         roomReview.innerHTML = '<div style="color:#fca5a5;margin-top:12px;padding:12px;border:1px solid #7f1d1d;border-radius:8px;"><strong>' +
-          (currentLanguage === 'ml' ? 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE' : 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE') +
-          '</strong><p>' + (currentLanguage === 'ml' ? 'Oru item-il ninnum stock deduct cheythittilla.' : 'No product stock was deducted.') +
-          '</p><strong>' + (currentLanguage === 'ml' ? 'Stock shortage:' : 'Stock shortages:') +
+          (currentLanguage === 'hi' ? 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE' : 'DEDUCTION UNSUCCESSFUL — STOCK SHORTAGE') +
+          '</strong><p>' + (currentLanguage === 'hi' ? 'Oru item-il ninnum stock deduct cheythittilla.' : 'No product stock was deducted.') +
+          '</p><strong>' + (currentLanguage === 'hi' ? 'Stock shortage:' : 'Stock shortages:') +
           '</strong><ul>' + shortageList + '</ul></div>';
         confirmRoomBtn.disabled = false;
         confirmRoomBtn.textContent = 'Confirm & Deduct Stock';
         return;
       }
       roomOcrStatus.textContent = (data.partial
-        ? (currentLanguage === 'ml' ? 'Stock shortage undu. Onnum deduct cheythittilla. ' : 'Stock shortage found. Nothing was deducted. ')
+        ? (currentLanguage === 'hi' ? 'Stock shortage undu. Onnum deduct cheythittilla. ' : 'Stock shortage found. Nothing was deducted. ')
         : '') + tr('success') + data.rooms.length + tr('roomsUpdated');
       const roomReport = (data.roomDetails || []).map(room =>
         '<div style="padding:8px;margin:6px 0;background:#0b1722;border-radius:6px;"><strong>' +
@@ -1252,10 +1339,10 @@
           return escapeHtml(localizedItemName(item ? item.name : id)) + ': ' + qty;
         }).join(' · ') + '</div></div>'
       ).join('');
-      roomReview.innerHTML = '<div style="color:' + (data.partial ? '#fbbf24' : '#34d399') + ';margin-top:12px;padding:12px;border:1px solid ' + (data.partial ? '#92400e' : '#237a55') + ';border-radius:8px;"><strong>' + (data.partial ? (currentLanguage === 'ml' ? 'DEDUCTION STOPPED — STOCK SHORTAGE' : 'DEDUCTION STOPPED — STOCK SHORTAGE') : (currentLanguage === 'ml' ? 'STOCK SUCCESSFULLY DEDUCTED' : 'SUCCESSFULLY DEDUCTED')) + '</strong><p>' + (currentLanguage === 'ml' ? 'Rooms: ' : 'Rooms: ') +
-        escapeHtml(data.rooms.join(', ')) + '</p>' + roomReport + '<p><strong>' + (currentLanguage === 'ml' ? 'Total deducted:' : 'Total deducted:') + '</strong> ' +
+      roomReview.innerHTML = '<div style="color:' + (data.partial ? '#fbbf24' : '#34d399') + ';margin-top:12px;padding:12px;border:1px solid ' + (data.partial ? '#92400e' : '#237a55') + ';border-radius:8px;"><strong>' + (data.partial ? (currentLanguage === 'hi' ? 'DEDUCTION STOPPED — STOCK SHORTAGE' : 'DEDUCTION STOPPED — STOCK SHORTAGE') : (currentLanguage === 'hi' ? 'STOCK SUCCESSFULLY DEDUCTED' : 'SUCCESSFULLY DEDUCTED')) + '</strong><p>' + (currentLanguage === 'hi' ? 'Rooms: ' : 'Rooms: ') +
+        escapeHtml(data.rooms.join(', ')) + '</p>' + roomReport + '<p><strong>' + (currentLanguage === 'hi' ? 'Total deducted:' : 'Total deducted:') + '</strong> ' +
         itemNames.map(escapeHtml).join('<br>') + '</p>' + ((data.skippedItems && data.skippedItems.length) ? '<p><strong>' + tr('skipped') + '</strong></p><ul>' + data.skippedItems.map(x => '<li>' + escapeHtml(localizedItemName(x.name)) + ': ' + (x.deducted || 0) + ' / ' + x.required + ' (' + (x.shortage || x.required) + ' short)</li>').join('') + '</ul>' : '') + '</div>';
-      confirmRoomBtn.textContent = currentLanguage === 'ml' ? 'Deduction complete' : 'Deduction complete';
+      confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'Deduction complete' : 'Deduction complete';
     } catch (e) {
       roomOcrStatus.textContent = translateMessage(tr('failed') + e.message);
       confirmRoomBtn.disabled = false;
