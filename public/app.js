@@ -119,6 +119,33 @@
     "ആപ്പ് നിങ്ങളുടെ ഫോണിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്ത് ഒറ്റ ക്ലിക്കിൽ ഉപയോഗിക്കാൻ താഴെ പറയുന്ന സ്റ്റെപ്പുകൾ ചെയ്യുക:": "ऐप को फोन में इंस्टॉल करके एक क्लिक में इस्तेमाल करने के लिए नीचे दिए गए चरण अपनाएँ:",
   };
 
+    "Below 500, top up needed immediately!": "500 से कम है, तुरंत स्टॉक भरें!",
+    "warnings": "चेतावनियाँ",
+    "warning": "चेतावनी",
+    "Total stock is ": "कुल स्टॉक ",
+    "below ": "से कम ",
+    "top up needed": "स्टॉक भरें",
+    " total is ": " कुल है ",
+    "Guest amenities": "अतिथि सुविधाएँ",
+    ": count needed": ": गिनती आवश्यक",
+    ": stock is 0 (Out of stock!)": ": स्टॉक 0 है (स्टॉक खत्म!)",
+    "Not Supported": "समर्थित नहीं",
+    "Active": "सक्रिय",
+    "Blocked in Settings": "सेटिंग्स में ब्लॉक है",
+    "Not Enabled": "चालू नहीं",
+    "Browser Alerts Active": "ब्राउज़र अलर्ट सक्रिय",
+    "Enable in Settings Below": "नीचे सेटिंग्स में चालू करें",
+    "Alerts: Active": "अलर्ट: सक्रिय",
+    "Alerts: Blocked": "अलर्ट: ब्लॉक",
+    "Alerts & Settings": "अलर्ट और सेटिंग्स",
+    "Notifications not supported in this browser.": "इस ब्राउज़र में नोटिफिकेशन समर्थित नहीं हैं।",
+    "⚠️ Blocked! Please follow the steps below to enable.": "⚠️ ब्लॉक है! चालू करने के लिए नीचे दिए गए चरण अपनाएँ।",
+    "🔊 In-app warning sound enabled": "🔊 ऐप की चेतावनी ध्वनि चालू है",
+    "🔇 In-app warning sound muted": "🔇 ऐप की चेतावनी ध्वनि बंद है",
+    "• Stock alerts turned ON successfully!": "• स्टॉक अलर्ट सफलतापूर्वक चालू हो गए!",
+    "• Stock alerts are now active!": "• स्टॉक अलर्ट अब सक्रिय हैं!",
+    "⚠️ Alerts not allowed. Follow the steps below.": "⚠️ अलर्ट की अनुमति नहीं मिली। नीचे दिए गए चरण अपनाएँ।",
+    "• Great! No items currently have 0 stock.": "• बहुत अच्छा! किसी भी आइटम का स्टॉक शून्य नहीं है।",
   const itemHindi = {
     'Broom':'झाड़ू','Mop':'पोछा','Gloves':'दस्ताने','Room freshener':'रूम फ्रेशनर',
     'Toilet roll':'टॉयलेट रोल','Restaurant tissue':'रेस्टोरेंट टिश्यू',
@@ -477,18 +504,18 @@
     }
     soundAlertToggle.addEventListener('change', (e) => {
       localStorage.setItem('hk_sound_enabled', e.target.checked);
-      showToast(e.target.checked ? '🔊 In-app warning sound enabled' : '🔇 In-app warning sound muted', '🔊');
+      showToast(translateMessage(e.target.checked ? '🔊 In-app warning sound enabled' : '🔇 In-app warning sound muted'), '🔊');
       if (e.target.checked) playAlertChime();
     });
 
     // Request Notification Permission
     settingsRequestPermissionBtn.addEventListener('click', async () => {
       if (!('Notification' in window)) {
-        showToast('Notifications not supported in this browser.', '⚠️');
+        showToast(translateMessage('Notifications not supported in this browser.'), '⚠️');
         return;
       }
       if (Notification.permission === 'denied') {
-        showToast('⚠️ Blocked! Please follow the steps below to enable.', '⚠️');
+        showToast(translateMessage('⚠️ Blocked! Please follow the steps below to enable.'), '⚠️');
         detectDeviceAndSelectTab();
         return;
       }
@@ -497,13 +524,13 @@
         updateNotificationStatusUI();
         if (perm === 'granted') {
           playAlertChime();
-          showToast('• Stock alerts turned ON successfully!', '');
-          new Notification('Housekeeping Stock Count', {
-            body: '• Stock alerts are now active!',
+          showToast(translateMessage('• Stock alerts turned ON successfully!'), '');
+          new Notification(translateMessage('Housekeeping Stock Count'), {
+            body: translateMessage('• Stock alerts are now active!'),
             icon: 'icon.png'
           });
         } else {
-          showToast('⚠️ Alerts not allowed. Follow the steps below.', '⚠️');
+          showToast(translateMessage('⚠️ Alerts not allowed. Follow the steps below.'), '⚠️');
           detectDeviceAndSelectTab();
         }
       } catch (e) {
