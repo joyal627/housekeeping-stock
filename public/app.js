@@ -1,5 +1,57 @@
 // Housekeeping Stock Count Application
 (function () {
+  const languageSelect = document.getElementById('languageSelect');
+  let currentLanguage = localStorage.getItem('hk_language') || 'en';
+  const messages = {
+    en: {
+      selectImage: tr('selectImage'),
+      validImage: tr('validImage'),
+      largeImage: tr('largeImage'),
+      reading: 'AI is reading the rooming sheet image…',
+      processing: tr('processing'),
+      unclear: tr('unclear'),
+      noRooms: tr('noRooms'),
+      confirm: 'Confirm supply deduction for ',
+      rooms: ' rooms?',
+      success: 'Stock deduction completed for ',
+      roomsUpdated: ' rooms. Available stock has been updated.',
+      partial: 'Partial deduction completed. Some products had no stock or insufficient stock.',
+      failed: 'Deduction failed: ',
+      noStock: 'No stock available for ',
+      skipped: 'Not deducted / shortage: ',
+      saved: 'Saved',
+      save: 'Save count'
+    },
+    hi: {
+      selectImage: 'कृपया रूमिंग शीट की छवि चुनें।',
+      validImage: 'कृपया JPG, PNG या WEBP छवि अपलोड करें।',
+      largeImage: 'छवि बहुत बड़ी है। कृपया 7 MB से छोटी छवि अपलोड करें।',
+      reading: 'AI रूमिंग शीट पढ़ रहा है…',
+      processing: 'स्टॉक की जाँच की जा रही है और कटौती की जा रही है…',
+      unclear: 'पुष्टि करने से पहले अस्पष्ट पंक्तियों को ठीक करें।',
+      noRooms: 'कोई पात्र कमरा नहीं मिला। CK IN कमरे के लिए ETA समय आवश्यक है।',
+      confirm: 'क्या आप ',
+      rooms: ' कमरों के लिए सामान की कटौती की पुष्टि करते हैं?',
+      success: 'स्टॉक कटौती पूरी हुई। ',
+      roomsUpdated: ' कमरों के लिए उपलब्ध स्टॉक अपडेट कर दिया गया है।',
+      partial: 'आंशिक कटौती पूरी हुई। कुछ उत्पादों का स्टॉक उपलब्ध नहीं था या कम था।',
+      failed: 'कटौती विफल: ',
+      noStock: 'स्टॉक उपलब्ध नहीं है: ',
+      skipped: 'कटौती नहीं हुई / कमी: ',
+      saved: 'सहेजा गया',
+      save: 'गिनती सहेजें'
+    }
+  };
+  const tr = key => (messages[currentLanguage] || messages.en)[key] || messages.en[key] || key;
+  if (languageSelect) {
+    languageSelect.value = currentLanguage;
+    languageSelect.addEventListener('change', () => {
+      currentLanguage = languageSelect.value === 'hi' ? 'hi' : 'en';
+      localStorage.setItem('hk_language', currentLanguage);
+      location.reload();
+    });
+  }
+
   let state = {
     minTotalStock: 500,
     minGuestAmenitiesStock: 500,
@@ -1040,7 +1092,7 @@
       return;
     }
     roomOcrBtn.disabled = true;
-    roomOcrStatus.textContent = 'Gemini AI is reading the rooming sheet image…';
+    roomOcrStatus.textContent = tr('reading');
     try {
       const dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -1121,7 +1173,7 @@
       }
     }
 
-    if (!confirm('Confirm supply deduction for ' + roomsToDeduct.length + ' rooms?')) return;
+    if (!confirm(tr('confirm') + roomsToDeduct.length + tr('rooms'))) return;
 
     confirmRoomBtn.disabled = true;
     confirmRoomBtn.textContent = 'Processing…';
@@ -1134,7 +1186,7 @@
         body: JSON.stringify({
           batchId,
           rooms: roomsToDeduct,
-          staffName: document.getElementById('roomOcrStaff').value
+          
         })
       });
       const data = await res.json();
@@ -1151,7 +1203,7 @@
         const item = state.items.find(entry => entry.id === id);
         return (item ? item.name : id) + ': -' + data.totals[id];
       });
-      roomOcrStatus.textContent = 'SUCCESSFULLY DEDUCTED: Stock deducted for ' + data.rooms.length + ' rooms. Stock count has been updated.';
+      roomOcrStatus.textContent = (data.partial ? tr('partial') + ' ' : '') + tr('success') + data.rooms.length + tr('roomsUpdated');
       const roomReport = (data.roomDetails || []).map(room =>
         '<div style="padding:8px;margin:6px 0;background:#0b1722;border-radius:6px;"><strong>' +
         escapeHtml(room.roomNumber) + ' — ' + escapeHtml(room.status) +
@@ -1163,10 +1215,10 @@
       ).join('');
       roomReview.innerHTML = '<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>SUCCESSFULLY DEDUCTED</strong><p>Rooms: ' +
         escapeHtml(data.rooms.join(', ')) + '</p>' + roomReport + '<p><strong>Total deducted:</strong> ' +
-        itemNames.map(escapeHtml).join('<br>') + '</p></div>';
-      confirmRoomBtn.textContent = 'Deducted ✓';
+        itemNames.map(escapeHtml).join('<br>') + '</p>' + ((data.skippedItems && data.skippedItems.length) ? '<p><strong>' + tr('skipped') + '</strong></p><ul>' + data.skippedItems.map(x => '<li>' + escapeHtml(x.name) + ': ' + (x.deducted || 0) + ' / ' + x.required + ' (' + (x.shortage || x.required) + ' short)</li>').join('') + '</ul>' : '') + '</div>';
+      confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'कटौती पूरी' : 'Deduction complete';
     } catch (e) {
-      roomOcrStatus.textContent = (/NO STOCK/i.test(e.message) ? 'NO STOCK: ' : 'DEDUCTION FAILED: ') + e.message;
+      roomOcrStatus.textContent = tr('failed') + e.message;
       confirmRoomBtn.disabled = false;
       confirmRoomBtn.textContent = 'Confirm & Deduct Stock';
       alert('Stock was NOT deducted.\n\n' + e.message + '\n\nPlease check and save the required stock counts, then try again.');
