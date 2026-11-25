@@ -3,6 +3,7 @@
   const languageSelect = document.getElementById('languageSelect');
   let currentLanguage = ['en', 'hi'].includes(localStorage.getItem('hk_language'))
     ? localStorage.getItem('hk_language') : 'en';
+  document.documentElement.lang = currentLanguage;
 
   const hindi = {
     'Language':'भाषा','Housekeeping Stock Count':'हाउसकीपिंग स्टॉक गणना',
