@@ -12,6 +12,6 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification(data.title || 'Housekeeping Stock', { body: data.body || '', icon: '/icons/icon-192.png', data: { url: data.url || '/' } }));
 });
 self.addEventListener('notificationclick', event => {
-  event.notification.close(); const target = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin).href;
+  event.notification.close(); const requested = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin); const target = requested.origin === self.location.origin ? requested.href : self.location.origin + '/';
   event.waitUntil((async () => { const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true }); for (const client of clients) { if (client.url === target && 'focus' in client) return client.focus(); } if (self.clients.openWindow) return self.clients.openWindow(target); })());
 });
