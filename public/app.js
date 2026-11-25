@@ -43,6 +43,18 @@
     }
   };
   const tr = key => (messages[currentLanguage] || messages.en)[key] || messages.en[key] || key;
+  const localizedItemName = name => currentLanguage === 'hi' ? ({
+    'Broom':'झाड़ू','Mop':'पोछा','Gloves':'दस्ताने','Room freshener':'कमरे का सुगंधक',
+    'Toilet roll':'टॉयलेट पेपर','Restaurant tissue':'रेस्टोरेंट टिश्यू',
+    'Garbage cover small':'छोटे कचरे के बैग','Garbage cover big':'बड़े कचरे के बैग',
+    'Floor cleaner':'फ़र्श साफ़ करने का क्लीनर','Glass cleaner':'काँच साफ़ करने का क्लीनर',
+    'Dental kit':'डेंटल किट','Shaving kit':'शेविंग किट','Shower cap':'शॉवर कैप',
+    'Soap':'साबुन','Shampoo':'शैम्पू','Moisturiser':'मॉइस्चराइज़र'
+  }[name] || name) : name;
+  const localizedCategory = name => currentLanguage === 'hi' ? ({
+    'Cleaning supplies':'सफ़ाई का सामान','Chemical supplies':'सफ़ाई के रसायन','Guest amenities':'अतिथि उपयोग की सामग्री'
+  }[name] || name) : name;
+  const localizedUnit = unit => currentLanguage === 'hi' ? ({pcs:'नग',boxes:'डिब्बे'}[unit] || unit) : unit;
 
   // Translate alerts, confirmations, and server-generated error messages too.
   const errorTranslations = [
@@ -765,14 +777,14 @@
 
       html += `
         <section class="category-section">
-          <h2 class="category-title">${escapeHtml(cat)}</h2>
+          <h2 class="category-title">${escapeHtml(localizedCategory(cat))}</h2>
           <div class="items-list">
             ${catItems.map(item => `
               <div class="item-card" id="card-${item.id}">
                 <div class="item-top">
-                  <span class="item-name">${escapeHtml(item.name)}</span>
+                  <span class="item-name">${escapeHtml(localizedItemName(item.name))}</span>
                   <span class="item-count-display ${item.currentCount !== null ? 'has-count' : ''}" id="display-${item.id}">
-                    ${item.currentCount !== null ? `${item.currentCount} ${item.unit}` : `— ${item.unit}`}
+                    ${item.currentCount !== null ? `${item.currentCount} ${localizedUnit(item.unit)}` : `— ${localizedUnit(item.unit)}`}
                   </span>
                 </div>
                 <div class="item-status-row" id="status-${item.id}">
@@ -1383,23 +1395,43 @@
         await loadFromServer();
       }
 
-      const itemNames = Object.keys(data.totals || {}).map(id => {
+      const deductedIds = Object.keys(data.totals || {});
+      const itemNames = deductedIds.map(id => {
         const item = state.items.find(entry => entry.id === id);
-        return (item ? item.name : id) + ': -' + data.totals[id];
+        return localizedItemName(item ? item.name : id) + ': -' + data.totals[id];
       });
-      roomOcrStatus.textContent = (data.partial ? tr('partial') + ' ' : '') + tr('success') + data.rooms.length + tr('roomsUpdated');
+      if (!data.success || deductedIds.length === 0) {
+        const shortageList = (data.skippedItems || []).map(x =>
+          '<li>' + escapeHtml(localizedItemName(x.name)) + ' — आवश्यक: ' + x.required +
+          ', उपलब्ध: ' + (x.available || 0) + ', कमी: ' + (x.shortage || x.required) + '</li>'
+        ).join('');
+        roomOcrStatus.textContent = currentLanguage === 'hi'
+          ? 'कटौती असफल: किसी भी उत्पाद का स्टॉक नहीं घटाया गया।'
+          : 'Deduction unsuccessful: no stock was deducted.';
+        roomReview.innerHTML = '<div style="color:#fca5a5;margin-top:12px;padding:12px;border:1px solid #7f1d1d;border-radius:8px;"><strong>' +
+          (currentLanguage === 'hi' ? 'कटौती असफल — स्टॉक उपलब्ध नहीं' : 'DEDUCTION UNSUCCESSFUL — NO STOCK AVAILABLE') +
+          '</strong><p>' + (currentLanguage === 'hi' ? 'किसी भी उत्पाद से स्टॉक नहीं घटाया गया।' : 'No product stock was deducted.') +
+          '</p><strong>' + (currentLanguage === 'hi' ? 'स्टॉक की कमी:' : 'Stock shortages:') +
+          '</strong><ul>' + shortageList + '</ul></div>';
+        confirmRoomBtn.disabled = false;
+        confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'पुष्टि करें और स्टॉक घटाएँ' : (currentLanguage === 'hi' ? 'पुष्टि करें और स्टॉक घटाएँ' : 'Confirm & Deduct Stock');
+        return;
+      }
+      roomOcrStatus.textContent = (data.partial
+        ? (currentLanguage === 'hi' ? 'आंशिक कटौती हुई। कुछ उत्पादों में स्टॉक की कमी है। ' : 'Partial deduction completed. Some items are short. ')
+        : '') + tr('success') + data.rooms.length + tr('roomsUpdated');
       const roomReport = (data.roomDetails || []).map(room =>
         '<div style="padding:8px;margin:6px 0;background:#0b1722;border-radius:6px;"><strong>' +
         escapeHtml(room.roomNumber) + ' — ' + escapeHtml(room.status) +
         (room.arrivalTime ? ' (' + escapeHtml(room.arrivalTime) + ')' : '') + '</strong><div>' +
         Object.entries(room.items || {}).map(([id, qty]) => {
           const item = state.items.find(entry => entry.id === id);
-          return escapeHtml(item ? item.name : id) + ': ' + qty;
+          return escapeHtml(localizedItemName(item ? item.name : id)) + ': ' + qty;
         }).join(' · ') + '</div></div>'
       ).join('');
       roomReview.innerHTML = '<div style="color:#34d399;margin-top:12px;padding:12px;border:1px solid #237a55;border-radius:8px;"><strong>SUCCESSFULLY DEDUCTED</strong><p>Rooms: ' +
-        escapeHtml(data.rooms.join(', ')) + '</p>' + roomReport + '<p><strong>Total deducted:</strong> ' +
-        itemNames.map(escapeHtml).join('<br>') + '</p>' + ((data.skippedItems && data.skippedItems.length) ? '<p><strong>' + tr('skipped') + '</strong></p><ul>' + data.skippedItems.map(x => '<li>' + escapeHtml(x.name) + ': ' + (x.deducted || 0) + ' / ' + x.required + ' (' + (x.shortage || x.required) + ' short)</li>').join('') + '</ul>' : '') + '</div>';
+        escapeHtml(data.rooms.join(', ')) + '</p>' + roomReport + '<p><strong>' + (currentLanguage === 'hi' ? 'कुल घटाया गया स्टॉक:' : 'Total deducted:') + '</strong> ' +
+        itemNames.map(escapeHtml).join('<br>') + '</p>' + ((data.skippedItems && data.skippedItems.length) ? '<p><strong>' + tr('skipped') + '</strong></p><ul>' + data.skippedItems.map(x => '<li>' + escapeHtml(localizedItemName(x.name)) + ': ' + (x.deducted || 0) + ' / ' + x.required + ' (' + (x.shortage || x.required) + ' short)</li>').join('') + '</ul>' : '') + '</div>';
       confirmRoomBtn.textContent = currentLanguage === 'hi' ? 'कटौती पूरी' : 'Deduction complete';
     } catch (e) {
       roomOcrStatus.textContent = translateMessage(tr('failed') + e.message);
