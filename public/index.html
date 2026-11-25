@@ -20,6 +20,8 @@
         <p class="subtitle">Count supplies on schedule and get reminded when a count is due.</p>
       </div>
       <div class="header-actions">
+        <label for="languageSelect" class="language-label">Language</label>
+        <select id="languageSelect" class="nav-dark-btn" aria-label="Select language"><option value="en">English</option><option value="hi">हिंदी</option></select>
         <button class="nav-dark-btn" id="zeroStockReportBtn" title="View items with zero stock">
           <span>Zero Stock Report</span>
         </button>
@@ -82,7 +84,6 @@
   <p id="roomOcrStatus" class="settings-desc" style="margin-top:12px;">No image processed.</p>
   <div id="roomOcrReview"></div>
   <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-    <input id="roomOcrStaff" type="text" placeholder="Staff name" style="padding:10px;border-radius:6px;background:#0b121c;color:white;border:1px solid #23364c;" />
     <button type="button" class="btn-primary" id="confirmRoomDeductionBtn" disabled>Confirm & Deduct Stock</button>
   </div>
 </section>
