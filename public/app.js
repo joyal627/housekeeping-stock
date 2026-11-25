@@ -849,7 +849,7 @@
   }
 
 
-  // Rooming sheet OCR and reviewed stock deduction
+  // AI Rooming Sheet Reader and reviewed stock deduction
   const roomImageInput = document.getElementById('roomSheetImage');
   const roomPreview = document.getElementById('roomSheetPreview');
   const roomOcrStatus = document.getElementById('roomOcrStatus');
@@ -938,7 +938,7 @@
     roomReview.innerHTML = '';
     confirmRoomBtn.disabled = true;
     ocrRows = [];
-    roomOcrStatus.textContent = 'Image ready. Tap Read Image (OCR).';
+    roomOcrStatus.textContent = 'Image ready. Tap Read Image (AI).';
     roomImageInput.selectedRoomFile = file;
   }
   if (roomImageInput) roomImageInput.addEventListener('change', () => handleRoomImageChange(roomImageInput));
@@ -970,7 +970,7 @@
       ' Total: <strong>' + ocrRows.length + ' rows</strong>, <strong>' + ocrRows.reduce((s,r) => s + r.expandedRoomCount, 0) + ' rooms</strong>.' +
       '</div>';
 
-    roomReview.innerHTML = '<h3 style="margin:14px 0 4px;">Review extracted rooms</h3>' +
+    roomReview.innerHTML = '<h3 style="margin:14px 0 4px;">AI Rooming Sheet Reader - Review</h3>' +
       (roomAiNote ? '<p style="padding:9px;border:1px solid #2563eb;border-radius:7px;color:#bfdbfe;margin-bottom:6px;">' + escapeHtml(roomAiNote) + '</p>' : '') +
       summaryLine + toggleBtn +
       displayRows.map(i => {
@@ -1075,7 +1075,7 @@
         };
       }).filter(row => row.roomNumbers.length);
       const usedModel = data.model || 'Gemini AI';
-      roomAiNote = `Read directly by ${usedModel} (no Tesseract OCR). Check every room, status, ETA and ROOMS count before deduction.`;
+      roomAiNote = `Read directly by ${usedModel} ((AI Vision)). Check every room, status, ETA and ROOMS count before deduction.`;
       roomOcrStatus.textContent = ocrRows.length
         ? `✓ ${usedModel} found ` + ocrRows.reduce((sum, row) => sum + row.expandedRoomCount, 0) + ' room entries across ' + ocrRows.length + ' rows. Review before confirming.'
         : `${usedModel} could not identify room rows. Please upload a clearer rooming sheet.`;

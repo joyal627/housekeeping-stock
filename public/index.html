@@ -69,16 +69,16 @@
 
     <!-- Items Section Container -->
     <section class="settings-section" id="roomOcrSection" style="margin:24px 0;">
-  <h2 class="category-title">Rooming Sheet OCR</h2>
+  <h2 class="category-title">AI Rooming Sheet Reader</h2>
   <p class="settings-desc">Upload the daily rooming-sheet image. Check every extracted room/status before confirming stock deduction.</p>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;">
-    <button type="button" class="btn-primary" id="roomOcrCameraBtn">OCR Photo (Camera)</button>
+    <button type="button" class="btn-primary" id="roomOcrCameraBtn">AI Scan (Camera)</button>
     <button type="button" class="btn-secondary-sm" id="roomOcrUploadBtn">Upload Image</button>
   </div>
   <input id="roomSheetImage" type="file" accept="image/*" capture="environment" hidden />
   <input id="roomSheetGalleryImage" type="file" accept="image/*" hidden />
   <img id="roomSheetPreview" alt="Rooming sheet preview" style="display:none;max-width:100%;max-height:320px;border-radius:8px;margin:10px 0;" />
-  <button type="button" class="btn-primary" id="runRoomOcrBtn">Read Image (OCR)</button>
+  <button type="button" class="btn-primary" id="runRoomOcrBtn">Read Image (AI)</button>
   <p id="roomOcrStatus" class="settings-desc" style="margin-top:12px;">No image processed.</p>
   <div id="roomOcrReview"></div>
   <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
