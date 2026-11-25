@@ -944,10 +944,37 @@
   if (roomImageInput) roomImageInput.addEventListener('change', () => handleRoomImageChange(roomImageInput));
   if (roomGalleryInput) roomGalleryInput.addEventListener('change', () => handleRoomImageChange(roomGalleryInput));
 
+  let showAllOcrRows = false;
+
+  function isRowError(r) {
+    const countDiff = Number.isInteger(r.expectedRoomCount) ? Math.abs(r.expectedRoomCount - r.expandedRoomCount) : 0;
+    return r.status === 'NOT CLEAR' || !r.roomNumber || countDiff > 2;
+  }
+
   function renderOcrRows() {
     const opts = ['CK OUT','STAY','STAY BACK','CK IN','NOT CLEAR'];
-    roomReview.innerHTML = '<h3 style="margin:14px 0 8px;">Review extracted rooms</h3>' + (roomAiNote ? '<p style="padding:9px;border:1px solid #2563eb;border-radius:7px;color:#bfdbfe;">' + escapeHtml(roomAiNote) + '</p>' : '') +
-      ocrRows.map((r,i) => {
+    const errorRows = ocrRows.filter((r,i) => ({ r, i })).map((_, idx) => idx).filter(i => isRowError(ocrRows[i]));
+    const hasErrors = ocrRows.some(r => isRowError(r));
+    const displayRows = showAllOcrRows ? ocrRows.map((r,i) => i) : ocrRows.map((r,i) => i).filter(i => isRowError(ocrRows[i]));
+
+    const toggleBtn = '<button id="ocrToggleShowAll" style="margin:6px 0 10px;padding:7px 16px;background:#1e3a5f;color:#bfdbfe;border:1px solid #2563eb;border-radius:6px;cursor:pointer;font-size:13px;">' +
+      (showAllOcrRows
+        ? '🔼 Errors only (' + ocrRows.filter(r => isRowError(r)).length + ' issue' + (ocrRows.filter(r => isRowError(r)).length !== 1 ? 's' : '') + ')'
+        : '🔽 Show all rooms (' + ocrRows.length + ')') +
+      '</button>';
+
+    const summaryLine = '<div style="padding:7px 0;color:#94a3b8;font-size:13px;">' +
+      (hasErrors
+        ? '⚠ <strong style="color:#fbbf24">' + ocrRows.filter(r => isRowError(r)).length + ' issue(s)</strong> found — fix before confirming. ' + (showAllOcrRows ? '' : 'Error rows shown below.')
+        : '✅ <strong style="color:#34d399">All rows OK</strong> — no issues found.') +
+      ' Total: <strong>' + ocrRows.length + ' rows</strong>, <strong>' + ocrRows.reduce((s,r) => s + r.expandedRoomCount, 0) + ' rooms</strong>.' +
+      '</div>';
+
+    roomReview.innerHTML = '<h3 style="margin:14px 0 4px;">Review extracted rooms</h3>' +
+      (roomAiNote ? '<p style="padding:9px;border:1px solid #2563eb;border-radius:7px;color:#bfdbfe;margin-bottom:6px;">' + escapeHtml(roomAiNote) + '</p>' : '') +
+      summaryLine + toggleBtn +
+      displayRows.map(i => {
+        const r = ocrRows[i];
         const countDiff = Number.isInteger(r.expectedRoomCount) ? Math.abs(r.expectedRoomCount - r.expandedRoomCount) : 0;
         const countText = Number.isInteger(r.expectedRoomCount)
           ? 'ROOMS column: ' + r.expectedRoomCount + ' | Detected: ' + r.expandedRoomCount + ' ' +
@@ -958,10 +985,11 @@
                 : '⚠ COUNT MISMATCH — check room numbers')
           : 'Detected rooms: ' + r.expandedRoomCount;
         const expandedPreview = r.roomNumbers && r.roomNumbers.length > 1
-          ? '<div style="font-size:12px;color:#94a3b8;margin-top:4px;word-break:break-all;">All rooms (' + r.expandedRoomCount + '): <strong>' + escapeHtml(r.roomNumbers.join(', ')) + '</strong></div>'
+          ? '<div style="font-size:12px;color:#94a3b8;margin-top:4px;word-break:break-all;">Rooms (' + r.expandedRoomCount + '): <strong>' + escapeHtml(r.roomNumbers.join(', ')) + '</strong></div>'
           : '';
+        const isErr = isRowError(r);
         return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0;padding:10px;background:#131e2c;border:1px solid ' +
-          (Number.isInteger(r.expectedRoomCount) && countDiff > 2 ? '#b45309' : '#1d2c3e') +
+          (isErr ? '#b45309' : '#1d2c3e') +
           ';border-radius:8px;">' +
           '<label>Room(s) <input data-ocr-room="' + i + '" value="' + escapeHtml(r.roomNumber) +
           '" style="width:100%;padding:8px;background:#0b121c;color:white;border:1px solid #23364c;border-radius:5px;">' + expandedPreview + '</label>' +
@@ -969,7 +997,12 @@
           opts.map(o => '<option ' + (r.status === o ? 'selected' : '') + '>' + o + '</option>').join('') +
           '</select></label><div style="padding:8px;color:#cbd5e1;">ETA / Check-in: <strong>' +
           escapeHtml(r.arrivalTime || 'No time found') + '</strong><br>' + escapeHtml(countText) + '</div></div>';
-      }).join('');
+      }).join('') +
+      (displayRows.length === 0 ? '<p style="color:#34d399;padding:12px;">✅ No issues — all rows look good!</p>' : '');
+
+    const toggleEl = document.getElementById('ocrToggleShowAll');
+    if (toggleEl) toggleEl.addEventListener('click', () => { showAllOcrRows = !showAllOcrRows; renderOcrRows(); });
+
     roomReview.querySelectorAll('[data-ocr-room]').forEach(el => el.addEventListener('change', () => {
       const row = ocrRows[Number(el.dataset.ocrRoom)];
       row.roomNumber = el.value.trim();
