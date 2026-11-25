@@ -43,6 +43,96 @@
     }
   };
   const tr = key => (messages[currentLanguage] || messages.en)[key] || messages.en[key] || key;
+  const hiText = {
+    "Housekeeping Stock Count":"हाउसकीपिंग स्टॉक प्रबंधन",
+    "Count supplies on schedule and get reminded when a count is due.":"निर्धारित समय पर सामान की गिनती करें और अगली गिनती के लिए सूचना प्राप्त करें।",
+    "Language":"भाषा","Zero Stock Report":"शून्य स्टॉक रिपोर्ट","View items with zero stock":"शून्य स्टॉक वाले उत्पाद देखें",
+    "Alerts & Settings":"सूचनाएँ और सेटिंग्स","Add to Phone":"फ़ोन में जोड़ें",
+    "Guest Amenities Warning:":"अतिथि सुविधाओं के सामान की चेतावनी:","Total stock is":"कुल स्टॉक है",
+    "(Below 500, top up needed immediately!)":"(500 से कम है, तुरंत स्टॉक भरें!)",
+    "Items tracked":"कुल उत्पाद","To count now":"गिनती बाकी","Total stock (min 500)":"कुल स्टॉक (न्यूनतम 500)",
+    "AI Rooming Sheet Reader":"AI रूमिंग शीट रीडर","Upload the daily rooming-sheet image. Check every extracted room/status before confirming stock deduction.":"रोज़ाना की रूमिंग शीट की तस्वीर अपलोड करें। स्टॉक कटौती की पुष्टि से पहले हर कमरे और स्थिति की जाँच करें।",
+    "AI Scan (Camera)":"AI स्कैन (कैमरा)","Upload Image":"तस्वीर अपलोड करें","Read Image (AI)":"AI से तस्वीर पढ़ें",
+    "No image processed.":"अभी कोई तस्वीर संसाधित नहीं हुई है।","Confirm & Deduct Stock":"पुष्टि करें और स्टॉक घटाएँ",
+    "Back":"वापस","Print":"प्रिंट करें","Share Report":"रिपोर्ट साझा करें","Download CSV":"CSV डाउनलोड करें",
+    "Stock Alerts & Settings":"स्टॉक सूचनाएँ और सेटिंग्स","Browser / Phone Notifications":"ब्राउज़र / फ़ोन सूचनाएँ",
+    "Checking...":"जाँच हो रही है...","Get instant alerts when Guest Amenities drop below 500 or when cleaning supplies run out.":"अतिथि सुविधाओं का स्टॉक 500 से कम होने या सफ़ाई का सामान समाप्त होने पर तुरंत सूचना पाएँ।",
+    "Turn On Browser Alerts":"ब्राउज़र सूचनाएँ चालू करें","Test Alert & Sound":"सूचना और ध्वनि जाँचें",
+    "In-App Warning Chime & Sound":"ऐप में चेतावनी ध्वनि","Play warning sound for zero & low stock":"शून्य या कम स्टॉक पर चेतावनी ध्वनि बजाएँ",
+    "How to Enable in Phone / Browser Settings":"फ़ोन / ब्राउज़र सेटिंग्स में कैसे चालू करें",
+    "If notifications are blocked or not appearing, follow these simple steps to turn them on in your phone:":"यदि सूचनाएँ बंद हैं या दिखाई नहीं दे रही हैं, तो उन्हें चालू करने के लिए ये चरण अपनाएँ:",
+    "Android (Chrome)":"एंड्रॉइड (Chrome)","iPhone (Safari)":"iPhone (Safari)","PC / Mac":"कंप्यूटर / Mac",
+    "Done":"हो गया","Add to Phone Home Screen":"फ़ोन की होम स्क्रीन पर जोड़ें",
+    "Install Housekeeping App Now":"हाउसकीपिंग ऐप अभी इंस्टॉल करें","Android":"एंड्रॉइड","iPhone / iPad":"iPhone / iPad",
+    "Laptop / PC":"लैपटॉप / कंप्यूटर","Alert":"सूचना","Count needed":"गिनती आवश्यक","Not counted yet":"अभी गिनती नहीं हुई",
+    "Counted":"गिनती पूरी","All supplies counted! Stock levels are sufficient.":"सभी सामान की गिनती हो गई है। स्टॉक पर्याप्त है।",
+    "Save count":"गिनती सहेजें","Saved!":"सहेजा गया","Server error":"सर्वर में त्रुटि",
+    "Please enter a valid count number (0 or higher).":"कृपया सही संख्या दर्ज करें (0 या उससे अधिक)।",
+    "Image ready. Tap Read Image (AI).":"तस्वीर तैयार है। AI से पढ़ने के लिए बटन दबाएँ।",
+    "AI Rooming Sheet Reader - Review":"AI रूमिंग शीट की जाँच करें","Processing…":"प्रक्रिया जारी है…",
+    "Deduction complete":"कटौती पूरी हुई","SUCCESSFULLY DEDUCTED":"स्टॉक सफलतापूर्वक घटाया गया",
+    "Stock was NOT deducted.":"स्टॉक नहीं घटाया गया।","Please check and save the required stock counts, then try again.":"कृपया आवश्यक स्टॉक की गिनती जाँचकर सहेजें और फिर प्रयास करें।",
+    "Image data is empty. Please upload again.":"तस्वीर का डेटा खाली है। कृपया दोबारा अपलोड करें।",
+    "Could not read the selected image. Please choose it again.":"चुनी गई तस्वीर पढ़ी नहीं जा सकी। कृपया दोबारा चुनें।",
+    "Gemini could not read the image.":"Gemini तस्वीर को पढ़ नहीं पाया।",
+    "AI image reading failed: ":"AI तस्वीर पढ़ने में विफल: ",
+    "Not Supported":"समर्थित नहीं","Active":"चालू","Blocked in Settings":"सेटिंग्स में बंद","Not Enabled":"चालू नहीं",
+    "Browser Alerts Active":"ब्राउज़र सूचनाएँ चालू","Enable in Settings Below":"नीचे सेटिंग्स में चालू करें",
+    "Alerts: Active":"सूचनाएँ: चालू","Alerts: Blocked":"सूचनाएँ: बंद","Alerts & Settings":"सूचनाएँ और सेटिंग्स",
+    "Click to view":"देखने के लिए क्लिक करें","Out of Stock":"स्टॉक समाप्त","Not Counted":"गिनती नहीं हुई",
+    "warnings":"चेतावनियाँ","warning":"चेतावनी","pcs":"नग","boxes":"डिब्बे",
+    "Cleaning supplies":"सफ़ाई का सामान","Chemical supplies":"सफ़ाई रसायन","Guest amenities":"अतिथि सुविधाओं का सामान",
+    "Broom":"झाड़ू","Mop":"पोछा","Gloves":"दस्ताने","Room freshener":"रूम फ्रेशनर","Toilet roll":"टॉयलेट रोल",
+    "Restaurant tissue":"रेस्टोरेंट टिश्यू","Garbage cover small":"छोटा कचरा बैग","Garbage cover big":"बड़ा कचरा बैग",
+    "Floor cleaner":"फ़र्श साफ़ करने का तरल","Glass cleaner":"काँच साफ़ करने का तरल","Dental kit":"डेंटल किट",
+    "Shaving kit":"शेविंग किट","Shower cap":"शॉवर कैप","Soap":"साबुन","Shampoo":"शैम्पू","Moisturiser":"मॉइस्चराइज़र",
+    "Room(s)":"कमरा/कमरे","Status":"स्थिति","ETA / Check-in:":"आगमन समय / चेक-इन:",
+    "No time found":"समय नहीं मिला","Detected rooms:":"पहचाने गए कमरे:","Review before confirming.":"पुष्टि से पहले जाँच करें।",
+    "Please select a rooming-sheet image.":"कृपया रूमिंग शीट की तस्वीर चुनें।",
+    "Please upload a JPG, PNG, or WEBP image.":"कृपया JPG, PNG या WEBP तस्वीर अपलोड करें।",
+    "Image is too large. Please upload an image under 7 MB.":"तस्वीर बहुत बड़ी है। कृपया 7 MB से छोटी तस्वीर अपलोड करें।",
+    "Resolve unclear rows before confirming.":"पुष्टि से पहले अस्पष्ट पंक्तियों को ठीक करें।",
+    "No eligible rooms found. A CK IN room must have an ETA time.":"कोई पात्र कमरा नहीं मिला। CK IN कमरे के लिए आगमन समय आवश्यक है।",
+    "Checking stock and processing deduction…":"स्टॉक की जाँच और कटौती की जा रही है…",
+    "Confirm supply deduction for ":"इन कमरों के सामान की कटौती की पुष्टि करें: ",
+    " rooms?":" कमरे?",
+    "Stock deduction completed for ":"कमरों के लिए स्टॉक कटौती पूरी हुई: ",
+    " rooms. Available stock has been updated.":" कमरे। उपलब्ध स्टॉक अपडेट कर दिया गया है।",
+    "Partial deduction completed. Some products had no stock or insufficient stock.":"आंशिक कटौती पूरी हुई। कुछ उत्पादों का स्टॉक उपलब्ध नहीं था या पर्याप्त नहीं था।",
+    "Deduction failed: ":"कटौती विफल: ","Not deducted / shortage: ":"कटौती नहीं हुई / कमी: "
+  };
+  function translateDom(root=document.body) {
+    if (currentLanguage !== 'hi' || !root) return;
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+    const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+    for(const node of nodes) {
+      const raw=node.nodeValue, trimmed=raw.trim();
+      if(!trimmed) continue;
+      if(hiText[trimmed]) node.nodeValue=raw.replace(trimmed,hiText[trimmed]);
+      else {
+        let updated=raw;
+        for(const [en,hi] of Object.entries(hiText)) {
+          if(en.length>5 && updated.includes(en)) updated=updated.split(en).join(hi);
+        }
+        if(updated!==raw) node.nodeValue=updated;
+      }
+    }
+    root.querySelectorAll?.('[placeholder],[title],[aria-label]').forEach(el=>{
+      for(const attr of ['placeholder','title','aria-label']) {
+        const val=el.getAttribute(attr); if(val && hiText[val]) el.setAttribute(attr,hiText[val]);
+      }
+    });
+  }
+  if(currentLanguage==='hi') {
+    document.documentElement.lang='hi';
+    document.title=hiText['Housekeeping Stock Count'];
+    translateDom();
+    const languageObserver=new MutationObserver(records=>records.forEach(record=>{
+      if(record.type==='childList') record.addedNodes.forEach(node=>{if(node.nodeType===1) translateDom(node); else if(node.nodeType===3 && hiText[node.nodeValue.trim()]) node.nodeValue=hiText[node.nodeValue.trim()];});
+      else if(record.type==='characterData' && hiText[record.target.nodeValue.trim()]) record.target.nodeValue=hiText[record.target.nodeValue.trim()];
+    }));
+    languageObserver.observe(document.body,{subtree:true,childList:true,characterData:true});
+  }
   if (languageSelect) {
     languageSelect.value = currentLanguage;
     languageSelect.addEventListener('change', () => {
