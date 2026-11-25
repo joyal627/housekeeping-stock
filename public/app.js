@@ -839,7 +839,7 @@
 
     // Validation 2: Count >= 1000
     if (num >= 1000) {
-      alert(currentLanguage === 'hi' ? 'कृपया स्टॉक ध्यान से जाँचें। संख्या 1000 या उससे अधिक नहीं हो सकती (अधिकतम सीमा 999 है)।' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
+      alert(currentLanguage === 'ml' ? 'Stock count carefully check cheyyuka. 1000 allenkil athil kooduthal aakaruthu (maximum 999).' : 'Please check your stock carefully! Count cannot be 1000 or more (Maximum allowed is 999).');
       return;
     }
 
