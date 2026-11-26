@@ -106,8 +106,10 @@ $('deduct').onclick=async()=>{if(!batch||!$('reviewed').checked)return;$('deduct
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || ('Server error (' + response.status + ')'));
-      if(data.blocked){status.textContent=data.message||'Only today\'s rooming sheet can be processed.';document.getElementById('ocrText').value='';return;}
+      if(data.blocked){status.textContent=data.message||'Only today\'s rooming sheet can be processed.';document.getElementById('ocrText').value='';activeSheetDate='';return;}
+      activeSheetDate=data.sheetDate||'';
       await refreshDeductionBadge();
+      const lockResponse=await fetch('/api/housekeeping/deduction-status',{cache:'no-store'});const lockData=await lockResponse.json();if(lockData.isDeductedToday){status.textContent="Today's rooming sheet ("+(lockData.todayDisplayDate||lockData.todayDate)+") has already been submitted and stock deduction is completed.";return;}
       const rows = Array.isArray(data.rows) ? data.rows : [];
       document.getElementById('ocrText').value = rows.map((row, index) => [
         (index + 1) + '. ' + (row.roomNumber || 'Room not clear'),
