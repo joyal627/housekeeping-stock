@@ -54,7 +54,7 @@ node server.js
 
 ## Supabase persistent storage
 
-The server stores the complete application state (stock counts, items, history, room deductions and settings) in the private `housekeeping_app_state` table. On first connection, it imports the existing `data.json` state if the table is empty. Subsequent API reads refresh from Supabase and every successful save is written to Supabase before the API reports success. The local JSON file is retained as a backup for non-serverless deployments.
+The server stores the complete application state (stock counts, items, history, room deductions and settings) in the private `app_state` table. On first connection, it imports the existing `data.json` state if the table is empty. Subsequent API reads refresh from Supabase and every successful save is written to Supabase before the API reports success. The local JSON file is retained as a backup for non-serverless deployments.
 
 1. Open the Supabase project SQL Editor and run `supabase/schema.sql` once.
 2. In the Vercel project environment variables, set `SUPABASE_SECRET_KEY` to the Supabase Secret key (server-side only). The project URL defaults to this project's URL; optionally set `SUPABASE_URL` explicitly. The legacy `SUPABASE_SERVICE_ROLE_KEY` name is also supported.
