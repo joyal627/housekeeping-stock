@@ -936,7 +936,7 @@ const server = http.createServer(async (req, res) => {
             'ROOMS COUNT VALIDATION: After reading Room Num, count the actual rooms represented and compare that count with ROOMS. Slash (/) separates room entries; a numeric range such as 131-133 means 131,132,133; letter-number IDs such as A1 are one exact room. CRITICAL EXAMPLE: ROOMS=5 and Room Num=101/131-133/A1 MUST produce expectedRoomCount=5 and roomNumber="101,131,132,133,A1". Never omit A1 and never treat the slash as decoration. Another example: ROOMS=2 and Room Num=106-107 means roomNumber="106,107". ROOMS=3 and Room Num=121-122-126 means exactly roomNumber="121,122,126" (not a continuous range). If the count conflicts, do not invent or silently add rooms: keep the clearest visible Room Num tokens, lower confidence and explain the mismatch. The ROOMS count is not Adult, Kid or meal count.',
             'DAY-USE EXCEPTION: Day-use D1/D2 may show 0.01/0.02 in ROOMS; preserve D1/D2 as room tokens and do not treat these decimal values as normal room counts.',
             'STRICT ETA OVERRIDE: ANY row with a real time in ETA (for example 10:00 AM, 9:30 AM, 12:30 PM) is ALWAYS CK IN, including D1/D2 and even when Plan or CK OUT says DAY. Only classify CK OUT when CK OUT/C Out is explicitly written in the CK OUT column; an ETA time takes precedence over DAY. Return arrivalTime with the ETA time.',
-            'DATE TABLES: The image may contain multiple separate tables, each with a date heading. Return EVERY table separately as tables:[{sheetDate:"YYYY-MM-DD",displayDate:"26-Nov",rows:[...]}]. Infer the year from the current year supplied in the request when only DD-MMM is visible. Do not mix rows between date tables. If no table heading date is visible, set sheetDate and displayDate to empty strings.',
+            'DATE TABLES: The image may contain multiple separate tables, each with a date heading. Return EVERY table separately as tables:[{sheetDate:"YYYY-MM-DD",displayDate:"26-Nov",rows:[...]}]. The current year is ' + new Date().getFullYear() + '. Infer that year when only DD-MMM is visible. Do not mix rows between date tables. If no table heading date is visible, set sheetDate and displayDate to empty strings.',
             'STATUS FROM ETA/COLUMN VALUES: Read ETA, CK OUT and Plan independently. If ETA says CK OUT, C Out, Check Out or equivalent, ALWAYS return status CK OUT and empty arrivalTime, even when the ROOMS cell is blank. Do not change this to NOT CLEAR because ROOMS is blank. If ETA says STAY, return STAY. A DAY booking is any row where CK OUT says DAY, Plan says DAY, or ROOMS is 0.01/0.02. For a DAY booking with a time in ETA, return status CK IN and that normalized arrivalTime. For any other row with a specific ETA time, return CK IN. Normalize 10. AM to 10:00 AM, 10.PM to 10:00 PM, and 09.30 am to 09:30 AM. Do not classify a time as a room number. If no reliable status/time is visible, use NOT CLEAR.',
             'For each row also return eta, plan and ckOut as the exact visible cell text (empty string if blank), so server-side rules can resolve DAY and checkout precedence deterministically.',
             'Return ONLY valid JSON in this exact shape: {"tables":[{"sheetDate":"2026-11-26","displayDate":"26-Nov","rows":[{"roomNumber":"101-119","expectedRoomCount":16,"eta":"C Out","plan":"","ckOut":"C Out","status":"CK OUT","arrivalTime":"","confidence":0.95,"reason":""}]}]}. If only one table, still return it inside tables. For compatibility you may also return rows for a single undated table.',
@@ -973,10 +973,10 @@ const server = http.createServer(async (req, res) => {
             const isDayBooking = /^DAY$/i.test(ckOutText) || /^DAY$/i.test(planText) || expectedRoomCount === 0.01 || expectedRoomCount === 0.02;
             const normalizedArrivalTime = normalizeRoomingSheetTime(typeof row.arrivalTime === 'string' ? row.arrivalTime : etaText);
             let status = String(row.status || '').toUpperCase().trim();
-            if (etaIsCheckout || /^(C OUT|CHECK OUT|CHECK-OUT|CHECKOUT)$/.test(status)) status = 'CK OUT';
+            if (etaIsCheckout) status = 'CK OUT';
+            else if (normalizedArrivalTime) status = 'CK IN';
             else if (etaIsStay || /^STAY$/i.test(status)) status = 'STAY';
-            else if (isDayBooking && normalizedArrivalTime) status = 'CK IN';
-            else if (normalizedArrivalTime || /^(CK IN|CHECK IN|CHECK-IN)$/.test(status)) status = 'CK IN';
+            else if (/^(CK IN|CHECK IN|CHECK-IN)$/.test(status)) status = 'CK IN';
             if (!allowedStatuses.has(status)) status = 'NOT CLEAR';
             const reasonParts = [typeof row.reason === 'string' ? row.reason.slice(0, 140) : ''];
             if (normalized.unknownRooms.length) reasonParts.push('Unknown room(s): ' + normalized.unknownRooms.join(', '));
@@ -1118,6 +1118,11 @@ const server = http.createServer(async (req, res) => {
           const todayDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
           if (!appData.housekeeping) appData.housekeeping = { processedBatches: [], deductions: [], deductedDates: [] };
           if (!Array.isArray(appData.housekeeping.deductedDates)) appData.housekeeping.deductedDates = [];
+          if (payload.sheetDate !== todayDate) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: "Only today's rooming sheet can be submitted. Please read today's dated sheet first.", todayDate, submittedSheetDate: payload.sheetDate || null }));
+            return;
+          }
           if (appData.housekeeping.deductedDates.includes(todayDate)) {
             res.writeHead(409, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: "Today's rooming sheet has already been submitted and stock deduction is completed.", duplicate: true, todayDate }));
