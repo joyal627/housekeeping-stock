@@ -10,7 +10,7 @@ const webPush = require('web-push');
 // Web Push configuration. Keep the private key server-side only.
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
-const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_URL = (process.env.SUPABASE_URL || 'https://jkmxqnpkykqcvezbxqvo.supabase.co').replace(/\/+$/, '');
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) webPush.setVapidDetails('mailto:admin@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 else console.warn('[Web Push] VAPID keys missing. Run npm run generate-vapid and add both keys to environment variables.');
