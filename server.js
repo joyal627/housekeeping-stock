@@ -946,7 +946,7 @@ const server = http.createServer(async (req, res) => {
             const etaText = typeof row.eta === 'string' ? row.eta.trim() : '';
             const planText = typeof row.plan === 'string' ? row.plan.trim() : '';
             const ckOutText = typeof row.ckOut === 'string' ? row.ckOut.trim() : '';
-            const etaIsCheckout = /^(C\\s*OUT|CK\\s*OUT|CHECK\\s*OUT|CHECK-OUT|CHECKOUT)$/i.test(etaText);
+            const etaIsCheckout = /^(C\s*OUT|CK\s*OUT|CHECK\s*OUT|CHECK-OUT|CHECKOUT)$/i.test(etaText);
             const etaIsStay = /^STAY$/i.test(etaText);
             const isDayBooking = /^DAY$/i.test(ckOutText) || /^DAY$/i.test(planText) || expectedRoomCount === 0.01 || expectedRoomCount === 0.02;
             const normalizedArrivalTime = normalizeRoomingSheetTime(typeof row.arrivalTime === 'string' ? row.arrivalTime : etaText);
