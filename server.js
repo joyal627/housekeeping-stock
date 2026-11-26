@@ -700,7 +700,7 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname.startsWith('/api/')) {
     await storageReady;
-    if (storageStatus.connected) {
+    if (storageStatus.connected && pathname === '/api/data' && req.method === 'GET') {
       try { await refreshDataFromSupabase(); }
       catch (error) { storageStatus.connected = false; storageStatus.mode = 'error'; storageStatus.message = error.message; console.error('[Storage] Refresh failed:', error.message); }
     }
