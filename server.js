@@ -935,9 +935,11 @@ const server = http.createServer(async (req, res) => {
             'STRICT COLUMN MAPPING: Read each row by its printed column boundaries and headers. The Room Num column contains the actual room identifiers; copy those identifiers into roomNumber. The ROOMS column contains only the number/count of rooms for that booking; copy that value into expectedRoomCount. NEVER use the ROOMS count as a room number, and NEVER use Adult, Kid, Plan, ETA or guest count as the room count. Do not shift values from a neighboring column when a cell is blank.',
             'ROOMS COUNT VALIDATION: After reading Room Num, count the actual rooms represented and compare that count with ROOMS. Slash (/) separates room entries; a numeric range such as 131-133 means 131,132,133; letter-number IDs such as A1 are one exact room. CRITICAL EXAMPLE: ROOMS=5 and Room Num=101/131-133/A1 MUST produce expectedRoomCount=5 and roomNumber="101,131,132,133,A1". Never omit A1 and never treat the slash as decoration. Another example: ROOMS=2 and Room Num=106-107 means roomNumber="106,107". ROOMS=3 and Room Num=121-122-126 means exactly roomNumber="121,122,126" (not a continuous range). If the count conflicts, do not invent or silently add rooms: keep the clearest visible Room Num tokens, lower confidence and explain the mismatch. The ROOMS count is not Adult, Kid or meal count.',
             'DAY-USE EXCEPTION: Day-use D1/D2 may show 0.01/0.02 in ROOMS; preserve D1/D2 as room tokens and do not treat these decimal values as normal room counts.',
+            'STRICT ETA OVERRIDE: ANY row with a real time in ETA (for example 10:00 AM, 9:30 AM, 12:30 PM) is ALWAYS CK IN, including D1/D2 and even when Plan or CK OUT says DAY. Only classify CK OUT when CK OUT/C Out is explicitly written in the CK OUT column; an ETA time takes precedence over DAY. Return arrivalTime with the ETA time.',
+            'DATE TABLES: The image may contain multiple separate tables, each with a date heading. Return EVERY table separately as tables:[{sheetDate:"YYYY-MM-DD",displayDate:"26-Nov",rows:[...]}]. Infer the year from the current year supplied in the request when only DD-MMM is visible. Do not mix rows between date tables. If no table heading date is visible, set sheetDate and displayDate to empty strings.',
             'STATUS FROM ETA/COLUMN VALUES: Read ETA, CK OUT and Plan independently. If ETA says CK OUT, C Out, Check Out or equivalent, ALWAYS return status CK OUT and empty arrivalTime, even when the ROOMS cell is blank. Do not change this to NOT CLEAR because ROOMS is blank. If ETA says STAY, return STAY. A DAY booking is any row where CK OUT says DAY, Plan says DAY, or ROOMS is 0.01/0.02. For a DAY booking with a time in ETA, return status CK IN and that normalized arrivalTime. For any other row with a specific ETA time, return CK IN. Normalize 10. AM to 10:00 AM, 10.PM to 10:00 PM, and 09.30 am to 09:30 AM. Do not classify a time as a room number. If no reliable status/time is visible, use NOT CLEAR.',
             'For each row also return eta, plan and ckOut as the exact visible cell text (empty string if blank), so server-side rules can resolve DAY and checkout precedence deterministically.',
-            'Return ONLY valid JSON in this exact shape: {"rows":[{"roomNumber":"101-119","expectedRoomCount":16,"eta":"C Out","plan":"","ckOut":"C Out","status":"CK OUT","arrivalTime":"","confidence":0.95,"reason":""}]}',
+            'Return ONLY valid JSON in this exact shape: {"tables":[{"sheetDate":"2026-11-26","displayDate":"26-Nov","rows":[{"roomNumber":"101-119","expectedRoomCount":16,"eta":"C Out","plan":"","ckOut":"C Out","status":"CK OUT","arrivalTime":"","confidence":0.95,"reason":""}]}]}. If only one table, still return it inside tables. For compatibility you may also return rows for a single undated table.',
             'Allowed status values: CK OUT, STAY, STAY BACK, CK IN, NOT CLEAR. Keep roomNumber as comma-separated exact tokens and/or valid ranges; do not flatten a valid continuous range. expectedRoomCount must be a number when readable, otherwise null.',
             'Recognize room identifiers such as 101-136, A1, A2, D1, D2, Treehouse and Clubvilla. Do not infer missing data. Use NOT CLEAR and low confidence when uncertain. Do not invent room numbers or duplicate rows.',
             'Ignore headings, totals, notes, and rows without a room number. No stock calculations or deductions.'
@@ -953,7 +955,13 @@ const server = http.createServer(async (req, res) => {
           }
           const allowedStatuses = new Set(['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR']);
           const roomRules = loadRoomSupplyRules();
-          const rows = (Array.isArray(aiData.rows) ? aiData.rows : []).slice(0, 80).map(row => {
+          const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+          const todayDisplayDate = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' }).format(new Date()).replace(' ', '-');
+          const inputTables = Array.isArray(aiData.tables) ? aiData.tables : [{ sheetDate: '', displayDate: '', rows: Array.isArray(aiData.rows) ? aiData.rows : [] }];
+          const tables = inputTables.slice(0, 10).map(table => {
+            const sheetDate = typeof table.sheetDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(table.sheetDate) ? table.sheetDate : '';
+            const displayDate = typeof table.displayDate === 'string' ? table.displayDate.slice(0, 20) : '';
+            const rows = (Array.isArray(table.rows) ? table.rows : []).slice(0, 80).map(row => {
             const rawRoomNumber = typeof row.roomNumber === 'string' ? row.roomNumber.slice(0, 120) : '';
             const expectedRoomCount = Number.isFinite(Number(row.expectedRoomCount)) && Number(row.expectedRoomCount) > 0 ? Number(row.expectedRoomCount) : null;
             const normalized = normalizeRoomingSheetRooms(rawRoomNumber, expectedRoomCount, roomRules);
@@ -983,10 +991,25 @@ const server = http.createServer(async (req, res) => {
               reason: reasonParts.filter(Boolean).join('; ').slice(0, 180),
               roomValidation: { valid: normalized.valid, unknownRooms: normalized.unknownRooms, count: normalized.count, countMatches: normalized.countMatches }
             };
-          }).filter(row => row.roomNumber);
-
+            }).filter(row => row.roomNumber);
+            return { sheetDate, displayDate, rows };
+          });
+          const datedTables = tables.filter(t => t.sheetDate);
+          const selected = datedTables.find(t => t.sheetDate === today);
+          if (datedTables.length && !selected) {
+            const nearest = datedTables.sort((a,b) => a.sheetDate.localeCompare(b.sheetDate))[0];
+            const isPast = nearest.sheetDate < today;
+            const dateLabel = nearest.displayDate || nearest.sheetDate;
+            const message = isPast
+              ? 'Stock deduction for ' + dateLabel + ' was already completed / is a past date. Only today\'s (' + todayDisplayDate + ') sheet can be submitted.'
+              : 'This sheet is for ' + dateLabel + '. Only today\'s (' + todayDisplayDate + ') rooming sheet can be processed.';
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, blocked: true, message, todayDate: today, todayDisplayDate, tables: tables.map(t => ({sheetDate:t.sheetDate,displayDate:t.displayDate})), rows: [] }));
+            return;
+          }
+          const chosenTable = selected || tables[0] || { sheetDate: today, displayDate: todayDisplayDate, rows: [] };
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, model: usedModel, rows }));
+          res.end(JSON.stringify({ success: true, model: usedModel, sheetDate: chosenTable.sheetDate || today, displayDate: chosenTable.displayDate || todayDisplayDate, selectedTableDate: chosenTable.displayDate || todayDisplayDate, tables: tables.map(t => ({sheetDate:t.sheetDate,displayDate:t.displayDate})), rows: chosenTable.rows }));
         } catch (error) {
           console.error('Rooming-sheet AI vision read failed:', error.message);
           res.writeHead(502, { 'Content-Type': 'application/json' });
