@@ -426,10 +426,9 @@ function normalizeRoomingSheetRooms(value, expectedRoomCount, rules) {
   const hasExpected = Number.isFinite(expected) && expected > 0;
   const dayUseOnly = expandedForValidation.length > 0 &&
     expandedForValidation.every(room => room === 'D1' || room === 'D2');
-  const dayUseCountMatches = dayUseOnly && ((expected === 0.01 && expandedForValidation.includes('D1')) ||
-    (expected === 0.02 && expandedForValidation.includes('D2')) ||
-    (expected === 0.01 && expandedForValidation.includes('D2')) ||
-    (expected === 0.02 && expandedForValidation.includes('D1')));
+  const dayUseCountMatches = dayUseOnly && expandedForValidation.length === 1 &&
+    ((expected === 0.01 && expandedForValidation[0] === 'D1') ||
+     (expected === 0.02 && expandedForValidation[0] === 'D2'));
   const countMatches = !hasExpected || dayUseCountMatches || Math.abs(count - expected) < 0.001;
   return {
     roomNumber: tokens.join(','),
