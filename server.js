@@ -11,11 +11,11 @@ const webPush = require('web-push');
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) webPush.setVapidDetails('mailto:admin@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 else console.warn('[Web Push] VAPID keys missing. Run npm run generate-vapid and add both keys to environment variables.');
-function readJsonRequest(req, maxBytes = 65536) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > maxBytes) { reject(new Error('Request body too large.')); req.destroy(); } }); req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch (_) { reject(new Error('Invalid JSON body.')); } }); req.on('error', reject); }); }
-function requirePushConfig() { if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) { const e = new Error('Add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.'); e.statusCode = 503; throw e; } if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) { const e = new Error('Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'); e.statusCode = 503; throw e; } }
+function readJsonRequest(req, maxBytes = 65536) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > maxBytes) { reject(new Error('Request body too large.')); req.destroy(); } }); req.on('end', async () => { try { resolve(JSON.parse(raw || '{}')); } catch (_) { reject(new Error('Invalid JSON body.')); } }); req.on('error', reject); }); }
+function requirePushConfig() { if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) { const e = new Error('Add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.'); e.statusCode = 503; throw e; } if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) { const e = new Error('Add SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY).'); e.statusCode = 503; throw e; } }
 async function supabasePushRequest(method, query = '', body) { const response = await fetch(SUPABASE_URL + '/rest/v1/push_subscriptions' + query, { method, headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + SUPABASE_SERVICE_ROLE_KEY, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }); if (!response.ok) throw new Error('Supabase push storage failed (' + response.status + '): ' + (await response.text()).slice(0, 250)); const text = await response.text(); return text ? JSON.parse(text) : []; }
 async function sendPushNotificationToAll({ title, body, url = '/' }) { requirePushConfig(); const rows = await supabasePushRequest('GET', '?select=endpoint,subscription'); const payload = JSON.stringify({ title: title || 'Housekeeping Stock', body: body || '', url: url || '/' }); const results = await Promise.all((rows || []).map(async row => { try { await webPush.sendNotification(row.subscription, payload); return 'sent'; } catch (e) { if (e.statusCode === 404 || e.statusCode === 410) { await supabasePushRequest('DELETE', '?endpoint=eq.' + encodeURIComponent(row.endpoint)); return 'removed'; } console.error('[Web Push] Delivery failed:', e.message); return 'failed'; } })); return { total: rows.length, sent: results.filter(x => x === 'sent').length, removed: results.filter(x => x === 'removed').length }; }
 
@@ -66,6 +66,7 @@ function getDataFilePath() {
 }
 
 function loadData() {
+  if (remoteDataLoaded && appData) return appData;
   try {
     const targetFile = getDataFilePath();
     if (!fs.existsSync(targetFile)) {
@@ -83,14 +84,86 @@ function loadData() {
   }
 }
 
-function saveData(data) {
+async function saveData(data) {
+  await persistAppData(data);
+}
+let remoteDataLoaded = false;
+let storageStatus = {
+  configured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
+  connected: false,
+  mode: 'local',
+  message: 'Supabase database storage is not configured.'
+};
+
+async function supabaseDataRequest(method, query = '', body) {
+  const response = await fetch(SUPABASE_URL + '/rest/v1/housekeeping_app_state' + query, {
+    method,
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: 'Bearer ' + SUPABASE_SERVICE_ROLE_KEY,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=representation'
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) })
+  });
+  const responseText = await response.text();
+  if (!response.ok) throw new Error('Supabase app-data storage failed (' + response.status + '): ' + responseText.slice(0, 300));
+  return responseText ? JSON.parse(responseText) : [];
+}
+
+async function initializeDataStorage() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    storageStatus = { configured: false, connected: false, mode: 'local', message: 'Add SUPABASE_URL and SUPABASE_SECRET_KEY to enable persistent database storage.' };
+    console.warn('[Storage] Supabase app-data storage is not configured; using local JSON storage.');
+    return;
+  }
   try {
-    const targetFile = getDataFilePath();
-    fs.writeFileSync(targetFile, JSON.stringify(data, null, 2), 'utf8');
-  } catch (err) {
-    console.error("Error saving data file:", err);
+    const rows = await supabaseDataRequest('GET', '?id=eq.main&select=data,updated_at');
+    if (Array.isArray(rows) && rows.length && rows[0].data && typeof rows[0].data === 'object') {
+      appData = rows[0].data;
+      remoteDataLoaded = true;
+      storageStatus = { configured: true, connected: true, mode: 'supabase', message: 'Application data is loaded from Supabase.' };
+      console.log('[Storage] Loaded application data from Supabase.');
+      return;
+    }
+
+    // One-time migration: preserve the existing JSON data if the Supabase row is empty.
+    const legacyPath = getDataFilePath();
+    const initialData = fs.existsSync(legacyPath) ? loadData() : (fs.existsSync(DATA_FILE) ? loadData() : defaultData);
+    await supabaseDataRequest('POST', '?on_conflict=id', { id: 'main', data: initialData, updated_at: new Date().toISOString() });
+    appData = initialData;
+    remoteDataLoaded = true;
+    storageStatus = { configured: true, connected: true, mode: 'supabase', message: 'Existing local data migrated to Supabase.' };
+    console.log('[Storage] Initial application data saved to Supabase (existing JSON data preserved when present).');
+  } catch (error) {
+    storageStatus = { configured: true, connected: false, mode: 'error', message: error.message };
+    console.error('[Storage] Supabase initialization failed:', error.message);
   }
 }
+
+async function refreshDataFromSupabase() {
+  if (!storageStatus.connected) return;
+  const rows = await supabaseDataRequest('GET', '?id=eq.main&select=data');
+  if (Array.isArray(rows) && rows.length && rows[0].data && typeof rows[0].data === 'object') {
+    appData = rows[0].data;
+    remoteDataLoaded = true;
+  }
+}
+
+async function persistAppData(data) {
+  if (storageStatus.configured && !storageStatus.connected) {
+    throw new Error('Supabase storage is configured but unavailable: ' + storageStatus.message);
+  }
+  if (storageStatus.connected) {
+    await supabaseDataRequest('POST', '?on_conflict=id', { id: 'main', data, updated_at: new Date().toISOString() });
+    storageStatus.message = 'Application data is saved in Supabase.';
+  }
+  const targetFile = getDataFilePath();
+  fs.writeFileSync(targetFile, JSON.stringify(data, null, 2), 'utf8');
+  appData = data;
+  remoteDataLoaded = storageStatus.connected;
+}
+
 
 function extractTextFromInteractionResponse(parsed) {
   if (typeof parsed.output_text === 'string' && parsed.output_text.trim()) {
@@ -456,6 +529,7 @@ function normalizeRoomingSheetRooms(value, expectedRoomCount, rules) {
 }
 
 let appData = loadData();
+const storageReady = initializeDataStorage();
 
 function getLocalIpAddresses() {
   const interfaces = os.networkInterfaces();
@@ -599,7 +673,7 @@ const mimeTypes = {
   '.ico': 'image/x-icon'
 };
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -614,10 +688,22 @@ const server = http.createServer((req, res) => {
   const pathname = parsedUrl.pathname;
 
   if (pathname.startsWith('/api/')) {
+    await storageReady;
+    if (storageStatus.connected) {
+      try { await refreshDataFromSupabase(); }
+      catch (error) { storageStatus.connected = false; storageStatus.mode = 'error'; storageStatus.message = error.message; console.error('[Storage] Refresh failed:', error.message); }
+    }
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
 
+
+    // Storage health endpoint; never exposes database keys or stored records.
+    if (pathname === '/api/storage/status' && req.method === 'GET') {
+      res.writeHead(storageStatus.connected ? 200 : 503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ...storageStatus, table: 'housekeeping_app_state' }));
+      return;
+    }
 
     // Web Push public VAPID key
     if (pathname === '/api/push/vapid-public-key' && req.method === 'GET') {
@@ -669,7 +755,7 @@ const server = http.createServer((req, res) => {
           const fileName = String(id).replace(/[^a-zA-Z0-9_-]/g, '') + '-' + crypto.randomBytes(8).toString('hex') + '.' + extension;
           fs.writeFileSync(path.join(uploadDir, fileName), buffer);
           item.photoUrl = '/uploads/' + fileName;
-          saveData(appData);
+          await saveData(appData);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true, photoUrl: item.photoUrl }));
         } catch (error) {
