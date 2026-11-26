@@ -725,7 +725,7 @@ const server = http.createServer(async (req, res) => {
         body += chunk;
         if (body.length > 8 * 1024 * 1024) req.destroy();
       });
-      req.on('end', () => {
+      req.on('end', async () => {
         try {
           const payload = JSON.parse(body || '{}');
           const id = payload.id;
@@ -787,7 +787,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/count' && req.method === 'POST') {
       let body = '';
       req.on('data', chunk => { body += chunk; });
-      req.on('end', () => {
+      req.on('end', async () => {
         try {
           const { id, count, staffName } = JSON.parse(body);
           appData = loadData();
@@ -849,7 +849,7 @@ const server = http.createServer(async (req, res) => {
           });
           if (appData.history.length > 200) appData.history.pop();
 
-          saveData(appData);
+          await saveData(appData);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true, item, items: appData.items }));
@@ -865,7 +865,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/reset' && req.method === 'POST') {
       let body = '';
       req.on('data', chunk => { body += chunk; });
-      req.on('end', () => {
+      req.on('end', async () => {
         try {
           const { id, all } = JSON.parse(body || '{}');
           appData = loadData();
@@ -881,7 +881,7 @@ const server = http.createServer(async (req, res) => {
               item.lastCountedAt = null;
             }
           }
-          saveData(appData);
+          await saveData(appData);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true, items: appData.items }));
         } catch (e) {
@@ -1050,7 +1050,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/housekeeping/deduct' && req.method === 'POST') {
       let body = '';
       req.on('data', chunk => { body += chunk; if (body.length > 100000) req.destroy(); });
-      req.on('end', () => {
+      req.on('end', async () => {
         try {
           const payload = JSON.parse(body || '{}');
           const { batchId, rooms } = payload;
@@ -1135,7 +1135,7 @@ const server = http.createServer(async (req, res) => {
           appData.housekeeping.deductions.unshift({ batchId, timestamp, rooms: reviewed, totals: deductedTotals, skippedItems });
           appData.housekeeping.processedBatches = appData.housekeeping.processedBatches.slice(-500);
           appData.housekeeping.deductions = appData.housekeeping.deductions.slice(0, 200);
-          saveData(appData);
+          await saveData(appData);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true, partial: skippedItems.length > 0, rooms: reviewed, roomDetails, totals: deductedTotals, skippedItems, items: appData.items }));
         } catch (e) {
