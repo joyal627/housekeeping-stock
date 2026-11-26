@@ -78,7 +78,7 @@ $('deduct').onclick=async()=>{if(!batch||!$('reviewed').checked)return;$('deduct
   button.onclick = async function () {
     const file = photo.files && photo.files[0];
     if (!file) { status.textContent = 'Choose a room-sheet photo first.'; return; }
-    if (!/^image\\/(jpeg|png|webp)$/i.test(file.type)) { status.textContent = 'Please choose a JPG, PNG or WEBP image.'; return; }
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) { status.textContent = 'Please choose a JPG, PNG or WEBP image.'; return; }
     if (file.size > 7 * 1024 * 1024) { status.textContent = 'Image is over 7 MB. Please choose a smaller image.'; return; }
     button.disabled = true;
     button.textContent = 'Reading…';
@@ -116,7 +116,7 @@ $('deduct').onclick=async()=>{if(!batch||!$('reviewed').checked)return;$('deduct
         row.arrivalTime ? 'ETA: ' + row.arrivalTime : '',
         'CONFIDENCE: ' + Math.round((Number(row.confidence) || 0) * 100) + '%',
         row.reason ? 'NOTE: ' + row.reason : ''
-      ].filter(Boolean).join(' | ')).join('\\n');
+      ].filter(Boolean).join(' | ')).join('\n');
       progressLabel.textContent = 'Reading complete';
       progressState.textContent = 'Completed';
       progressNote.textContent = 'AI response received successfully.';
