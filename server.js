@@ -995,6 +995,11 @@ const server = http.createServer(async (req, res) => {
             return { sheetDate, displayDate, rows };
           });
           const datedTables = tables.filter(t => t.sheetDate);
+          if (!datedTables.length) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, blocked: true, message: 'Could not detect a date header on the rooming sheet. Only a clearly dated today\'s sheet can be processed.', todayDate: today, todayDisplayDate, rows: [] }));
+            return;
+          }
           const selected = datedTables.find(t => t.sheetDate === today);
           if (datedTables.length && !selected) {
             const nearest = datedTables.sort((a,b) => a.sheetDate.localeCompare(b.sheetDate))[0];
