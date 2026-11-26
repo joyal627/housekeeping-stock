@@ -50,3 +50,14 @@ node server.js
 6. **Add New Items**: ഹൗസ്കീപ്പിംഗിലേക്ക് പുതിയ സാധനങ്ങൾ (ഉദാ: Bath towel, Slippers) ചേർക്കാൻ `➕ Add Item` ബട്ടൺ.
 7. **Report & CSV Export**: സ്റ്റോക്ക് കണക്കുകൾ പ്രിന്റ് എടുക്കാനും എക്സൽ / CSV ഫയലായി ഡൗൺലോഡ് ചെയ്യാനും `📋 Report` ബട്ടൺ.
 8. **Shift Reset**: അടുത്ത ദിവസത്തെ അല്ലെങ്കിൽ അടുത്ത ഷിഫ്റ്റിലെ കൗണ്ടിംഗിനായി ഒറ്റ ക്ലിക്കിൽ റീസെറ്റ് ചെയ്യാനുള്ള ഓപ്ഷൻ.
+
+
+## Supabase persistent storage
+
+The server stores the complete application state (stock counts, items, history, room deductions and settings) in the private `housekeeping_app_state` table. On first connection, it imports the existing `data.json` state if the table is empty. Subsequent API reads refresh from Supabase and every successful save is written to Supabase before the API reports success. The local JSON file is retained as a backup for non-serverless deployments.
+
+1. Open the Supabase project SQL Editor and run `supabase/schema.sql` once.
+2. In the Vercel project environment variables, set `SUPABASE_SECRET_KEY` to the Supabase Secret key (server-side only). The project URL defaults to this project's URL; optionally set `SUPABASE_URL` explicitly. The legacy `SUPABASE_SERVICE_ROLE_KEY` name is also supported.
+3. Redeploy. Check `/api/storage/status`; it should return `connected: true` and `mode: "supabase"`.
+
+Never put the Supabase Secret/service-role key in frontend JavaScript or a `VITE_`/public environment variable. The publishable key is not used for this private server-side table.
