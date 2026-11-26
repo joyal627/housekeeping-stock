@@ -96,7 +96,7 @@ let storageStatus = {
 };
 
 async function supabaseDataRequest(method, query = '', body) {
-  const response = await fetch(SUPABASE_URL + '/rest/v1/housekeeping_app_state' + query, {
+  const response = await fetch(SUPABASE_URL + '/rest/v1/app_state' + query, {
     method,
     headers: {
       apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -118,7 +118,7 @@ async function initializeDataStorage() {
     return;
   }
   try {
-    const rows = await supabaseDataRequest('GET', '?id=eq.main&select=data,updated_at');
+    const rows = await supabaseDataRequest('GET', '?id=eq.1&select=data,updated_at');
     if (Array.isArray(rows) && rows.length && rows[0].data && typeof rows[0].data === 'object') {
       appData = rows[0].data;
       remoteDataLoaded = true;
@@ -130,7 +130,7 @@ async function initializeDataStorage() {
     // One-time migration: preserve the existing JSON data if the Supabase row is empty.
     const legacyPath = getDataFilePath();
     const initialData = fs.existsSync(legacyPath) ? loadData() : (fs.existsSync(DATA_FILE) ? loadData() : defaultData);
-    await supabaseDataRequest('POST', '?on_conflict=id', { id: 'main', data: initialData, updated_at: new Date().toISOString() });
+    await supabaseDataRequest('POST', '?on_conflict=id', { id: 1, data: initialData, updated_at: new Date().toISOString() });
     appData = initialData;
     remoteDataLoaded = true;
     storageStatus = { configured: true, connected: true, mode: 'supabase', message: 'Existing local data migrated to Supabase.' };
@@ -143,7 +143,7 @@ async function initializeDataStorage() {
 
 async function refreshDataFromSupabase() {
   if (!storageStatus.connected) return;
-  const rows = await supabaseDataRequest('GET', '?id=eq.main&select=data');
+  const rows = await supabaseDataRequest('GET', '?id=eq.1&select=data');
   if (Array.isArray(rows) && rows.length && rows[0].data && typeof rows[0].data === 'object') {
     appData = rows[0].data;
     remoteDataLoaded = true;
@@ -155,7 +155,7 @@ async function persistAppData(data) {
     throw new Error('Supabase storage is configured but unavailable: ' + storageStatus.message);
   }
   if (storageStatus.connected) {
-    await supabaseDataRequest('POST', '?on_conflict=id', { id: 'main', data, updated_at: new Date().toISOString() });
+    await supabaseDataRequest('POST', '?on_conflict=id', { id: 1, data, updated_at: new Date().toISOString() });
     storageStatus.message = 'Application data is saved in Supabase.';
   }
   const targetFile = getDataFilePath();
@@ -701,7 +701,7 @@ const server = http.createServer(async (req, res) => {
     // Storage health endpoint; never exposes database keys or stored records.
     if (pathname === '/api/storage/status' && req.method === 'GET') {
       res.writeHead(storageStatus.connected ? 200 : 503, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ...storageStatus, table: 'housekeeping_app_state' }));
+      res.end(JSON.stringify({ ...storageStatus, table: 'app_state' }));
       return;
     }
 
