@@ -959,7 +959,7 @@ const server = http.createServer(async (req, res) => {
           const todayDisplayDate = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' }).format(new Date()).replace(' ', '-');
           const inputTables = Array.isArray(aiData.tables) ? aiData.tables : [{ sheetDate: '', displayDate: '', rows: Array.isArray(aiData.rows) ? aiData.rows : [] }];
           const tables = inputTables.slice(0, 10).map(table => {
-            const sheetDate = typeof table.sheetDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(table.sheetDate) ? table.sheetDate : '';
+            const sheetDate = typeof table.sheetDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(table.sheetDate) ? table.sheetDate : '';
             const displayDate = typeof table.displayDate === 'string' ? table.displayDate.slice(0, 20) : '';
             const rows = (Array.isArray(table.rows) ? table.rows : []).slice(0, 80).map(row => {
             const rawRoomNumber = typeof row.roomNumber === 'string' ? row.roomNumber.slice(0, 120) : '';
