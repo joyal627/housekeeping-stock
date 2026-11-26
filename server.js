@@ -113,12 +113,12 @@ function extractTextFromInteractionResponse(parsed) {
   return '';
 }
 
-function callGeminiInteractionsApi(model, inputParts, apiKey, timeoutMs = 90000) {
+function callGeminiInteractionsApi(model, inputParts, apiKey, timeoutMs = 90000, thinkingLevel = 'low') {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
       model: model,
       input: inputParts,
-      generation_config: { thinking_level: 'low' },
+      generation_config: { thinking_level: thinkingLevel },
       response_format: {
         type: 'text',
         mime_type: 'application/json'
@@ -166,10 +166,10 @@ function callGeminiInteractionsApi(model, inputParts, apiKey, timeoutMs = 90000)
 }
 
 
-async function callGeminiWithRetry(model, inputParts, apiKey, maxRetries = 2) {
+async function callGeminiWithRetry(model, inputParts, apiKey, maxRetries = 2, options = {}) {
   for (let attempt = 0; ; attempt++) {
     try {
-      return await callGeminiInteractionsApi(model, inputParts, apiKey, 90000);
+      return await callGeminiInteractionsApi(model, inputParts, apiKey, options.timeoutMs || 90000, options.thinkingLevel || 'low');
     } catch (err) {
       const isRetryable =
         err.statusCode === 503 ||
@@ -251,7 +251,7 @@ async function executeVisionAiWithFallback(prompt, imageBase64, mimeType) {
   if (geminiKey) {
     for (const model of geminiModels) {
       try {
-        const text = await callGeminiWithRetry(model, interactionsInput, geminiKey);
+        const text = await callGeminiWithRetry(model, interactionsInput, geminiKey, 2, { thinkingLevel: 'medium', timeoutMs: 90000 });
         if (text) return { text, model };
         failureLog.push(`${model}: empty response`);
       } catch (err) {
@@ -334,6 +334,111 @@ async function executeTextAiWithFallback(prompt) {
   }
 
   throw new Error(`AI review failed on all providers: ${failureLog.join(' | ')}`);
+}
+
+
+function loadRoomSupplyRules() {
+  return JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'room-supply-rules.json'), 'utf8'));
+}
+
+// Normalize shorthand without turning explicit multi-room lists into accidental ranges.
+function normalizeRoomingSheetRooms(value, expectedRoomCount, rules) {
+  let source = String(value || '').toUpperCase()
+    .replace(/[–—−]/g, '-')
+    .replace(/\s+/g, '')
+    .replace(/\(/g, ',').replace(/\)/g, ',')
+    .replace(/\//g, ',')
+    .replace(/-{3,}/g, '~');
+  source = source.replace(/,+/g, ',').replace(/^,|,$/g, '');
+  const known = new Set((rules.rooms || []).map(room => String(room.roomNumber).toUpperCase()));
+  const parts = source.split(',').filter(Boolean);
+  const tokens = [];
+  let previousNumeric = '';
+
+  for (const part of parts) {
+    if (/^[A-Z]+\d+$/i.test(part) || /^(TREEHOUSE|CLUBVILLA)$/i.test(part)) {
+      tokens.push(part);
+      previousNumeric = '';
+      continue;
+    }
+    if (/^\d{3}~\d{3}$/.test(part)) {
+      const [start, end] = part.split('~');
+      tokens.push(start + '-' + end);
+      previousNumeric = end;
+      continue;
+    }
+    if (/^\d{3}-\d{3}$/.test(part)) {
+      const [start, end] = part.split('-');
+      tokens.push(start + '-' + end);
+      previousNumeric = end;
+      continue;
+    }
+    if (/^\d{3}(?:-\d{3}){2,}$/.test(part)) {
+      const list = part.split('-');
+      tokens.push(...list);
+      previousNumeric = list[list.length - 1];
+      continue;
+    }
+    if (/^\d{3}-\d(?:-\d)+$/.test(part)) {
+      const chunks = part.split('-');
+      const prefix = chunks[0].slice(0, 2);
+      tokens.push(chunks[0], ...chunks.slice(1).map(n => prefix + n));
+      previousNumeric = tokens[tokens.length - 1];
+      continue;
+    }
+    if (/^\d{3}$/.test(part)) {
+      tokens.push(part);
+      previousNumeric = part;
+      continue;
+    }
+    if (/^\d{1,2}$/.test(part) && previousNumeric) {
+      const expanded = part.length === 1
+        ? previousNumeric.slice(0, 2) + part
+        : previousNumeric.slice(0, 1) + part;
+      tokens.push(expanded);
+      previousNumeric = expanded;
+      continue;
+    }
+    if (/^\d{3}-\d{3}$/.test(part)) {
+      tokens.push(part);
+      previousNumeric = part.split('-')[1];
+      continue;
+    }
+    tokens.push(part);
+    previousNumeric = '';
+  }
+
+  const expandedForValidation = [];
+  for (const token of tokens) {
+    const range = /^(\d{3})-(\d{3})$/.exec(token);
+    if (range) {
+      const start = Number(range[1]), end = Number(range[2]);
+      if (end < start || end - start > 100) {
+        expandedForValidation.push(token);
+        continue;
+      }
+      for (let n = start; n <= end; n++) expandedForValidation.push(String(n));
+    } else expandedForValidation.push(token);
+  }
+  const unknown = [...new Set(expandedForValidation.filter(room => !known.has(room)))];
+  const count = expandedForValidation.length;
+  const expected = Number(expectedRoomCount);
+  const hasExpected = Number.isFinite(expected) && expected > 0;
+  const dayUseOnly = expandedForValidation.length > 0 &&
+    expandedForValidation.every(room => room === 'D1' || room === 'D2');
+  const dayUseCountMatches = dayUseOnly && ((expected === 0.01 && expandedForValidation.includes('D1')) ||
+    (expected === 0.02 && expandedForValidation.includes('D2')) ||
+    (expected === 0.01 && expandedForValidation.includes('D2')) ||
+    (expected === 0.02 && expandedForValidation.includes('D1')));
+  const countMatches = !hasExpected || dayUseCountMatches || Math.abs(count - expected) < 0.001;
+  return {
+    roomNumber: tokens.join(','),
+    valid: unknown.length === 0 && countMatches,
+    unknownRooms: unknown,
+    count,
+    expectedRoomCount: hasExpected ? expected : null,
+    countMatches
+  };
 }
 
 let appData = loadData();
@@ -709,17 +814,18 @@ const server = http.createServer((req, res) => {
             return;
           }
           const prompt = [
-            'You are reading a hotel housekeeping rooming sheet directly from this image. Do not use OCR software.',
-            'Extract every data row that has a room number. Read the room-number cell, ROOMS count, status, and ETA/check-in time from the table.',
+            'You are an expert hotel front-office rooming-sheet reader. Read the image visually; do not use OCR software.',
+            'The photo may be rotated 90 degrees sideways or upside down. Mentally rotate it until the table is upright, then follow the actual column headers, not assumed page orientation. Important headers include CK IN, CK OUT, NAME, ROOMS, Room Num, ETA, Adult, Kid, Plan and similar hotel booking fields.',
+            'If one page contains multiple date tables or multiple separate tables, read EVERY table from top to bottom in page order and preserve row order within each table. Do not stop after the first date/table.',
+            'HANDWRITING AND CORRECTIONS: handwritten edits override printed content. Always ignore printed room numbers that are crossed out, struck through, cancelled or overwritten; use the handwritten replacement written beside, above or next to them. Never output both the crossed-out number and its replacement.',
+            'ROOM TOKENS: preserve the exact room identifiers and grouping. Expand shorthand carefully: 106-7-8 means 106,107,108; 135,36 means 135,136. A sequence such as 121-122-126 when ROOMS count is 3 means exactly 121,122,126, NOT the continuous range 121-126.',
+            'RANGES AND SEPARATORS: repeated hyphens such as 131---136 mean range 131-136. A single hyphen between two full room numbers such as 123-125 is a range only when the row/count supports that interpretation. Slash and parentheses are group separators: 101/123-125/(131-136) means groups 101, 123-125 and 131-136. Do not merge separate groups or invent intermediate rooms.',
+            'ROOMS COUNT: cross-check the number of rooms represented by the room tokens against the ROOMS column. The ROOMS count is not Adult, Kid or meal count. Day-use D1/D2 may use decimal notation 0.01/0.02; preserve D1 and D2 as room tokens and do not treat these decimal values as normal room counts. If count and room tokens conflict, retain the most legible room tokens but set confidence low and explain the mismatch in reason.',
+            'STATUS FROM ETA/COLUMN VALUES: C Out, CK OUT, Check Out or equivalent means status CK OUT. "stay" means STAY. A specific time such as 12.30 pm or 10.00 AM means status CK IN and arrivalTime must contain that time in readable normalized form. Do not classify a time as a room number. If no reliable status/time is visible, use NOT CLEAR.',
             'Return ONLY valid JSON in this exact shape: {"rows":[{"roomNumber":"101-119","expectedRoomCount":16,"status":"CK OUT","arrivalTime":"","confidence":0.95,"reason":""}]}',
-            'Allowed status values: CK OUT, STAY, STAY BACK, CK IN, NOT CLEAR.',
-            'CRITICAL FOR ROOM RANGES & GROUPS: When a cell or booking covers multiple rooms or a range (e.g. 101-119, 101-112, 114-119, 123-125), YOU MUST OUTPUT THE FULL RANGE (e.g. "101-119") or all rooms in roomNumber. NEVER truncate, shorten, or replace a range like 101-119 with a single room like 114!',
-            'Read the ROOMS count accurately from the ROOMS column (e.g. 16 for a group of 16 rooms). Do not confuse ROOMS count with adults, children, or meal counts.',
-            'Recognize room ranges and grouped room numbers faithfully, e.g. 101-119, 101-112, 114-119, 123-125, 131-136, A1, A2, D1, D2, Treehouse, Clubvilla.',
-            'For CK IN, include ETA only when a clearly printed check-in/ETA time belongs to that row. Otherwise arrivalTime must be empty.',
-            'Do not infer missing data. Use NOT CLEAR and low confidence when uncertain. Do not invent room numbers or duplicate rows.',
-            'Ignore headings, totals, notes, and rows without a room number. Preserve the visual row order.',
-            'No stock calculations or deductions.'
+            'Allowed status values: CK OUT, STAY, STAY BACK, CK IN, NOT CLEAR. Keep roomNumber as comma-separated exact tokens and/or valid ranges; do not flatten a valid continuous range. expectedRoomCount must be a number when readable, otherwise null.',
+            'Recognize room identifiers such as 101-136, A1, A2, D1, D2, Treehouse and Clubvilla. Do not infer missing data. Use NOT CLEAR and low confidence when uncertain. Do not invent room numbers or duplicate rows.',
+            'Ignore headings, totals, notes, and rows without a room number. No stock calculations or deductions.'
           ].join(' ');
 
           const { text: modelText, model: usedModel } = await executeVisionAiWithFallback(prompt, imageBase64, mimeType);
@@ -731,14 +837,30 @@ const server = http.createServer((req, res) => {
             throw new Error('AI response was not valid JSON. Please upload a clearer image.');
           }
           const allowedStatuses = new Set(['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR']);
-          const rows = (Array.isArray(aiData.rows) ? aiData.rows : []).slice(0, 80).map(row => ({
-            roomNumber: typeof row.roomNumber === 'string' ? row.roomNumber.slice(0, 120) : '',
-            expectedRoomCount: Number.isInteger(row.expectedRoomCount) && row.expectedRoomCount > 0 ? row.expectedRoomCount : null,
-            status: allowedStatuses.has(String(row.status || '').toUpperCase()) ? String(row.status).toUpperCase() : 'NOT CLEAR',
-            arrivalTime: typeof row.arrivalTime === 'string' ? row.arrivalTime.slice(0, 16) : '',
-            confidence: Math.max(0, Math.min(1, Number(row.confidence) || 0)),
-            reason: typeof row.reason === 'string' ? row.reason.slice(0, 180) : ''
-          })).filter(row => row.roomNumber);
+          const roomRules = loadRoomSupplyRules();
+          const rows = (Array.isArray(aiData.rows) ? aiData.rows : []).slice(0, 80).map(row => {
+            const rawRoomNumber = typeof row.roomNumber === 'string' ? row.roomNumber.slice(0, 120) : '';
+            const expectedRoomCount = Number.isFinite(Number(row.expectedRoomCount)) && Number(row.expectedRoomCount) > 0 ? Number(row.expectedRoomCount) : null;
+            const normalized = normalizeRoomingSheetRooms(rawRoomNumber, expectedRoomCount, roomRules);
+            let status = String(row.status || '').toUpperCase().trim();
+            if (/^(C OUT|CHECK OUT|CHECK-OUT|CHECKOUT)$/.test(status)) status = 'CK OUT';
+            if (/^STAY$/i.test(status)) status = 'STAY';
+            if (/^(CK IN|CHECK IN|CHECK-IN)$/.test(status) && row.arrivalTime) status = 'CK IN';
+            if (!allowedStatuses.has(status)) status = 'NOT CLEAR';
+            const reasonParts = [typeof row.reason === 'string' ? row.reason.slice(0, 140) : ''];
+            if (normalized.unknownRooms.length) reasonParts.push('Unknown room(s): ' + normalized.unknownRooms.join(', '));
+            if (!normalized.countMatches) reasonParts.push('ROOMS count mismatch: detected ' + normalized.count + ', expected ' + normalized.expectedRoomCount);
+            const validationFailed = !normalized.valid;
+            return {
+              roomNumber: normalized.roomNumber || rawRoomNumber,
+              expectedRoomCount,
+              status: validationFailed ? 'NOT CLEAR' : status,
+              arrivalTime: status === 'CK IN' && typeof row.arrivalTime === 'string' ? row.arrivalTime.slice(0, 16) : '',
+              confidence: validationFailed ? Math.min(0.59, Math.max(0, Number(row.confidence) || 0)) : Math.max(0, Math.min(1, Number(row.confidence) || 0)),
+              reason: reasonParts.filter(Boolean).join('; ').slice(0, 180),
+              roomValidation: { valid: normalized.valid, unknownRooms: normalized.unknownRooms, count: normalized.count, countMatches: normalized.countMatches }
+            };
+          }).filter(row => row.roomNumber);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true, model: usedModel, rows }));
