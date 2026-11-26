@@ -417,16 +417,27 @@ function loadRoomSupplyRules() {
 // Normalize handwritten ETA shorthand such as "10. AM", "10.PM" and "09.30 am".
 function normalizeRoomingSheetTime(value) {
   if (typeof value !== 'string') return '';
-  let time = value.trim().replace(/\s+/g, ' ').toUpperCase();
-  time = time.replace(/\b(\d{1,2})\s*\.\s*(AM|PM)\b/, '$1:00 $2');
-  time = time.replace(/\b(\d{1,2})\.(\d{2})\s*(AM|PM)\b/, '$1:$2 $3');
-  time = time.replace(/\b(\d{1,2})\s+(AM|PM)\b/, '$1:00 $2');
-  time = time.replace(/\b(\d{1,2}):(\d{2})(AM|PM)\b/, '$1:$2 $3');
-  const match = /\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/.exec(time);
-  if (!match) return '';
-  const hour = Number(match[1]), minute = Number(match[2]);
+  const time = value.trim().replace(/\s+/g, ' ').toUpperCase();
+  let hour, minute = 0, period;
+  let match = /^(\d{1,2})\s*\.\s*(AM|PM)$/.exec(time);
+  if (match) {
+    hour = Number(match[1]);
+    period = match[2];
+  } else {
+    match = /^(\d{1,2})[.:](\d{2})\s*(AM|PM)$/.exec(time);
+    if (match) {
+      hour = Number(match[1]);
+      minute = Number(match[2]);
+      period = match[3];
+    } else {
+      match = /^(\d{1,2})\s+(AM|PM)$/.exec(time);
+      if (!match) return '';
+      hour = Number(match[1]);
+      period = match[2];
+    }
+  }
   if (hour < 1 || hour > 12 || minute > 59) return '';
-  return String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0') + ' ' + match[3];
+  return String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0') + ' ' + period;
 }
 
 // Normalize shorthand without turning explicit multi-room lists into accidental ranges.
