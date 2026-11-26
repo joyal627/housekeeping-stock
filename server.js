@@ -1083,6 +1083,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // GET today's deduction status (Asia/Kolkata).
+    if (pathname === '/api/housekeeping/deduction-status' && req.method === 'GET') {
+      try {
+        await refreshDataFromSupabase();
+        const todayDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const dates = appData.housekeeping && Array.isArray(appData.housekeeping.deductedDates) ? appData.housekeeping.deductedDates : [];
+        const lastDeductedDate = dates.length ? dates[dates.length - 1] : null;
+        const display = value => value ? new Date(value + 'T12:00:00+05:30').toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' }).replace(' ', '-') : null;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ todayDate, todayDisplayDate: display(todayDate), isDeductedToday: dates.includes(todayDate), lastDeductedDate, lastDeductedDisplayDate: display(lastDeductedDate) }));
+      } catch (error) {
+        res.writeHead(503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Could not load deduction status: ' + error.message }));
+      }
+      return;
+    }
+
     // POST /api/housekeeping/deduct - apply reviewed checkout supplies exactly once
     if (pathname === '/api/housekeeping/deduct' && req.method === 'POST') {
       let body = '';
@@ -1096,7 +1113,16 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({ error: 'batchId and reviewed checkout rooms are required' }));
             return;
           }
+          await refreshDataFromSupabase();
           appData = loadData();
+          const todayDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+          if (!appData.housekeeping) appData.housekeeping = { processedBatches: [], deductions: [], deductedDates: [] };
+          if (!Array.isArray(appData.housekeeping.deductedDates)) appData.housekeeping.deductedDates = [];
+          if (appData.housekeeping.deductedDates.includes(todayDate)) {
+            res.writeHead(409, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: "Today's rooming sheet has already been submitted and stock deduction is completed.", duplicate: true, todayDate }));
+            return;
+          }
           if (!appData.housekeeping) appData.housekeeping = { processedBatches: [], deductions: [] };
           if (appData.housekeeping.processedBatches.includes(batchId)) {
             res.writeHead(409, { 'Content-Type': 'application/json' });
@@ -1170,6 +1196,8 @@ const server = http.createServer(async (req, res) => {
           }
           appData.housekeeping.processedBatches.push(batchId);
           appData.housekeeping.deductions.unshift({ batchId, timestamp, rooms: reviewed, totals: deductedTotals, skippedItems });
+          appData.housekeeping.deductedDates.push(todayDate);
+          appData.housekeeping.deductedDates = [...new Set(appData.housekeeping.deductedDates)].sort().slice(-730);
           appData.housekeeping.processedBatches = appData.housekeeping.processedBatches.slice(-500);
           appData.housekeeping.deductions = appData.housekeeping.deductions.slice(0, 200);
           await saveData(appData);
