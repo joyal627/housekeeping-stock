@@ -341,6 +341,21 @@ function loadRoomSupplyRules() {
   return JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'room-supply-rules.json'), 'utf8'));
 }
 
+// Normalize handwritten ETA shorthand such as "10. AM", "10.PM" and "09.30 am".
+function normalizeRoomingSheetTime(value) {
+  if (typeof value !== 'string') return '';
+  let time = value.trim().replace(/\\s+/g, ' ').toUpperCase();
+  time = time.replace(/\\b(\\d{1,2})\\s*\\.\\s*(AM|PM)\\b/, '$1:00 $2');
+  time = time.replace(/\\b(\\d{1,2})\\.(\\d{2})\\s*(AM|PM)\\b/, '$1:$2 $3');
+  time = time.replace(/\\b(\\d{1,2})\\s+(AM|PM)\\b/, '$1:00 $2');
+  time = time.replace(/\\b(\\d{1,2}):(\\d{2})(AM|PM)\\b/, '$1:$2 $3');
+  const match = /\\b(\\d{1,2}):(\\d{2})\\s*(AM|PM)\\b/.exec(time);
+  if (!match) return '';
+  const hour = Number(match[1]), minute = Number(match[2]);
+  if (hour < 1 || hour > 12 || minute > 59) return '';
+  return String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0') + ' ' + match[3];
+}
+
 // Normalize shorthand without turning explicit multi-room lists into accidental ranges.
 function normalizeRoomingSheetRooms(value, expectedRoomCount, rules) {
   let source = String(value || '').toUpperCase()
@@ -820,8 +835,9 @@ const server = http.createServer((req, res) => {
             'ROOM TOKENS: preserve the exact room identifiers and grouping. Expand shorthand carefully: 106-7-8 means 106,107,108; 135,36 means 135,136. A sequence such as 121-122-126 when ROOMS count is 3 means exactly 121,122,126, NOT the continuous range 121-126.',
             'RANGES AND SEPARATORS: repeated hyphens such as 131---136 mean range 131-136. A single hyphen between two full room numbers such as 123-125 is a range only when the row/count supports that interpretation. Slash and parentheses are group separators: 101/123-125/(131-136) means groups 101, 123-125 and 131-136. Do not merge separate groups or invent intermediate rooms.',
             'ROOMS COUNT: cross-check the number of rooms represented by the room tokens against the ROOMS column. The ROOMS count is not Adult, Kid or meal count. Day-use D1/D2 may use decimal notation 0.01/0.02; preserve D1 and D2 as room tokens and do not treat these decimal values as normal room counts. If count and room tokens conflict, retain the most legible room tokens but set confidence low and explain the mismatch in reason.',
-            'STATUS FROM ETA/COLUMN VALUES: C Out, CK OUT, Check Out or equivalent means status CK OUT. "stay" means STAY. A specific time such as 12.30 pm or 10.00 AM means status CK IN and arrivalTime must contain that time in readable normalized form. Do not classify a time as a room number. If no reliable status/time is visible, use NOT CLEAR.',
-            'Return ONLY valid JSON in this exact shape: {"rows":[{"roomNumber":"101-119","expectedRoomCount":16,"status":"CK OUT","arrivalTime":"","confidence":0.95,"reason":""}]}',
+            'STATUS FROM ETA/COLUMN VALUES: Read ETA, CK OUT and Plan independently. If ETA says CK OUT, C Out, Check Out or equivalent, ALWAYS return status CK OUT and empty arrivalTime, even when the ROOMS cell is blank. Do not change this to NOT CLEAR because ROOMS is blank. If ETA says STAY, return STAY. A DAY booking is any row where CK OUT says DAY, Plan says DAY, or ROOMS is 0.01/0.02. For a DAY booking with a time in ETA, return status CK IN and that normalized arrivalTime. For any other row with a specific ETA time, return CK IN. Normalize 10. AM to 10:00 AM, 10.PM to 10:00 PM, and 09.30 am to 09:30 AM. Do not classify a time as a room number. If no reliable status/time is visible, use NOT CLEAR.',
+            'For each row also return eta, plan and ckOut as the exact visible cell text (empty string if blank), so server-side rules can resolve DAY and checkout precedence deterministically.'
+            'Return ONLY valid JSON in this exact shape: {"rows":[{"roomNumber":"101-119","expectedRoomCount":16,"eta":"C Out","plan":"","ckOut":"C Out","status":"CK OUT","arrivalTime":"","confidence":0.95,"reason":""}]}',
             'Allowed status values: CK OUT, STAY, STAY BACK, CK IN, NOT CLEAR. Keep roomNumber as comma-separated exact tokens and/or valid ranges; do not flatten a valid continuous range. expectedRoomCount must be a number when readable, otherwise null.',
             'Recognize room identifiers such as 101-136, A1, A2, D1, D2, Treehouse and Clubvilla. Do not infer missing data. Use NOT CLEAR and low confidence when uncertain. Do not invent room numbers or duplicate rows.',
             'Ignore headings, totals, notes, and rows without a room number. No stock calculations or deductions.'
@@ -841,10 +857,18 @@ const server = http.createServer((req, res) => {
             const rawRoomNumber = typeof row.roomNumber === 'string' ? row.roomNumber.slice(0, 120) : '';
             const expectedRoomCount = Number.isFinite(Number(row.expectedRoomCount)) && Number(row.expectedRoomCount) > 0 ? Number(row.expectedRoomCount) : null;
             const normalized = normalizeRoomingSheetRooms(rawRoomNumber, expectedRoomCount, roomRules);
+            const etaText = typeof row.eta === 'string' ? row.eta.trim() : '';
+            const planText = typeof row.plan === 'string' ? row.plan.trim() : '';
+            const ckOutText = typeof row.ckOut === 'string' ? row.ckOut.trim() : '';
+            const etaIsCheckout = /^(C\\s*OUT|CK\\s*OUT|CHECK\\s*OUT|CHECK-OUT|CHECKOUT)$/i.test(etaText);
+            const etaIsStay = /^STAY$/i.test(etaText);
+            const isDayBooking = /^DAY$/i.test(ckOutText) || /^DAY$/i.test(planText) || expectedRoomCount === 0.01 || expectedRoomCount === 0.02;
+            const normalizedArrivalTime = normalizeRoomingSheetTime(typeof row.arrivalTime === 'string' ? row.arrivalTime : etaText);
             let status = String(row.status || '').toUpperCase().trim();
-            if (/^(C OUT|CHECK OUT|CHECK-OUT|CHECKOUT)$/.test(status)) status = 'CK OUT';
-            if (/^STAY$/i.test(status)) status = 'STAY';
-            if (/^(CK IN|CHECK IN|CHECK-IN)$/.test(status) && row.arrivalTime) status = 'CK IN';
+            if (etaIsCheckout || /^(C OUT|CHECK OUT|CHECK-OUT|CHECKOUT)$/.test(status)) status = 'CK OUT';
+            else if (etaIsStay || /^STAY$/i.test(status)) status = 'STAY';
+            else if (isDayBooking && normalizedArrivalTime) status = 'CK IN';
+            else if (normalizedArrivalTime || /^(CK IN|CHECK IN|CHECK-IN)$/.test(status)) status = 'CK IN';
             if (!allowedStatuses.has(status)) status = 'NOT CLEAR';
             const reasonParts = [typeof row.reason === 'string' ? row.reason.slice(0, 140) : ''];
             if (normalized.unknownRooms.length) reasonParts.push('Unknown room(s): ' + normalized.unknownRooms.join(', '));
@@ -853,8 +877,8 @@ const server = http.createServer((req, res) => {
             return {
               roomNumber: normalized.roomNumber || rawRoomNumber,
               expectedRoomCount,
-              status: validationFailed ? 'NOT CLEAR' : status,
-              arrivalTime: status === 'CK IN' && typeof row.arrivalTime === 'string' ? row.arrivalTime.slice(0, 16) : '',
+              status: status === 'CK OUT' ? 'CK OUT' : (validationFailed ? 'NOT CLEAR' : status),
+              arrivalTime: status === 'CK IN' ? normalizedArrivalTime : '',
               confidence: validationFailed ? Math.min(0.59, Math.max(0, Number(row.confidence) || 0)) : Math.max(0, Math.min(1, Number(row.confidence) || 0)),
               reason: reasonParts.filter(Boolean).join('; ').slice(0, 180),
               roomValidation: { valid: normalized.valid, unknownRooms: normalized.unknownRooms, count: normalized.count, countMatches: normalized.countMatches }
