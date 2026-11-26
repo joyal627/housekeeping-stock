@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Daily Room Supplies</title><style>
-:root{color-scheme:dark;font-family:Inter,Arial,sans-serif;background:#0c141e;color:#f8fafc}*{box-sizing:border-box}body{margin:0;padding:22px;background:#0c141e}.wrap{max-width:850px;margin:auto}.card{background:#131e2c;border:1px solid #26384c;border-radius:14px;padding:18px;margin:14px 0}h1{font-size:24px}p,.muted{color:#9aabba;font-size:14px}input,textarea,button{font:inherit}input[type=file],textarea,input[type=text]{width:100%;padding:12px;border:1px solid #34495e;border-radius:8px;background:#0b121c;color:#fff}textarea{min-height:130px;margin-top:10px}button{border:0;border-radius:8px;padding:12px 16px;background:#2dd4bf;color:#042f2e;font-weight:700;cursor:pointer;margin-top:10px}button.secondary{background:#23364a;color:#fff}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}.status{padding:10px;border-radius:8px;background:#0b121c;margin-top:10px}.table{width:100%;border-collapse:collapse}.table td,.table th{padding:9px;border-bottom:1px solid #304154;text-align:left}label{display:block;margin:10px 0}.danger{color:#fca5a5}.ok{color:#6ee7b7}</style></head>
+:root{color-scheme:dark;font-family:Inter,Arial,sans-serif;background:#0c141e;color:#f8fafc}@keyframes aiIndeterminate{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}*{box-sizing:border-box}body{margin:0;padding:22px;background:#0c141e}.wrap{max-width:850px;margin:auto}.card{background:#131e2c;border:1px solid #26384c;border-radius:14px;padding:18px;margin:14px 0}h1{font-size:24px}p,.muted{color:#9aabba;font-size:14px}input,textarea,button{font:inherit}input[type=file],textarea,input[type=text]{width:100%;padding:12px;border:1px solid #34495e;border-radius:8px;background:#0b121c;color:#fff}textarea{min-height:130px;margin-top:10px}button{border:0;border-radius:8px;padding:12px 16px;background:#2dd4bf;color:#042f2e;font-weight:700;cursor:pointer;margin-top:10px}button.secondary{background:#23364a;color:#fff}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}.status{padding:10px;border-radius:8px;background:#0b121c;margin-top:10px}.table{width:100%;border-collapse:collapse}.table td,.table th{padding:9px;border-bottom:1px solid #304154;text-align:left}label{display:block;margin:10px 0}.danger{color:#fca5a5}.ok{color:#6ee7b7}</style></head>
 <body><main class="wrap"><h1>Daily Housekeeping Supplies</h1><p>Upload the WhatsApp room-report photo, review the OCR text, then enter only confirmed CK OUT rooms. STAY and CK IN rooms are excluded.</p>
-<section class="card"><h2>1. Upload WhatsApp photo</h2><input id="photo" type="file" accept="image/*"><div class="row"><button id="rotate" class="secondary" type="button">Rotate 90°</button><button id="read" type="button">Read room sheet with AI</button></div><div id="imagePreview" class="status muted">Image preview will appear here.</div><div id="ocrStatus" class="status muted">Choose a clear photo to begin.</div><div id="aiProgressWrap" class="status" style="display:none"><div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:7px"><strong id="aiProgressLabel">Preparing image…</strong><strong id="aiProgressPercent">1%</strong></div><div style="height:10px;background:#26384c;border-radius:99px;overflow:hidden"><div id="aiProgressBar" style="height:100%;width:1%;background:#2dd4bf;border-radius:99px;transition:width .35s ease"></div></div><small id="aiProgressNote" class="muted">Progress is an estimate; 100% appears when the AI response is received.</small></div><textarea id="ocrText" placeholder="Recognized text will appear here. Check it against the original WhatsApp photo."></textarea><p class="muted">OCR is a reading aid, not an approval. Verify every room and its CK OUT status against the original photo.</p></section>
+<section class="card"><h2>1. Upload WhatsApp photo</h2><input id="photo" type="file" accept="image/*"><div class="row"><button id="rotate" class="secondary" type="button">Rotate 90°</button><button id="read" type="button">Read room sheet with AI</button></div><div id="imagePreview" class="status muted">Image preview will appear here.</div><div id="ocrStatus" class="status muted">Choose a clear photo to begin.</div><div id="aiProgressWrap" class="status" style="display:none"><div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:7px"><strong id="aiProgressLabel">Preparing image…</strong><strong id="aiProgressState">In progress</strong></div><div style="height:10px;background:#26384c;border-radius:99px;overflow:hidden"><div id="aiProgressBar" style="height:100%;width:35%;background:#2dd4bf;border-radius:99px;animation:aiIndeterminate 1.4s ease-in-out infinite"></div></div><small id="aiProgressNote" class="muted">AI is processing the image. Exact percentage is not provided by the AI service.</small></div><textarea id="ocrText" placeholder="Recognized text will appear here. Check it against the original WhatsApp photo."></textarea><p class="muted">OCR is a reading aid, not an approval. Verify every room and its CK OUT status against the original photo.</p></section>
 <section class="card"><h2>2. Confirm CK OUT rooms</h2><p>Enter room IDs separated by commas. Example: 107, 116, 117, D1. Do not include STAY or CK IN rooms.</p><input id="rooms" type="text" placeholder="e.g. 107, 116, 117"><label><input id="reviewed" type="checkbox"> I checked the original report and confirm every room entered above is CK OUT.</label><label>Staff name <input id="staff" type="text" placeholder="Staff name"></label><button id="calculate" class="secondary">Calculate supplies</button><div id="preview" class="status muted">No rooms selected.</div><button id="deduct" disabled>Confirm & deduct stock</button><div id="result" class="status muted"></div></section>
 <section class="card"><h2>Room rules configured</h2><p>40 units: 37 standard, D1/D2 special, Clubvilla dormitory. A1, A2 and Treehouse use standard-room quantities.</p><p class="muted">Deduction is blocked if any required stock item has not been counted or is insufficient. Each batch can be deducted only once.</p></section></main>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script><script>
@@ -73,25 +73,13 @@ $('deduct').onclick=async()=>{if(!batch||!$('reviewed').checked)return;$('deduct
     button.textContent = 'Reading…';
     status.textContent = 'AI image reading started. Please wait…';
     const progressWrap = document.getElementById('aiProgressWrap');
-    const progressBar = document.getElementById('aiProgressBar');
-    const progressPercent = document.getElementById('aiProgressPercent');
     const progressLabel = document.getElementById('aiProgressLabel');
+    const progressState = document.getElementById('aiProgressState');
     const progressNote = document.getElementById('aiProgressNote');
     progressWrap.style.display = 'block';
-    let progress = 1;
-    const paintProgress = () => {
-      progressBar.style.width = progress + '%';
-      progressPercent.textContent = progress + '%';
-      progressLabel.textContent = progress < 20 ? 'Preparing image…' : progress < 85 ? 'AI is reading the room sheet…' : 'Finishing and checking results…';
-    };
-    paintProgress();
-    const progressTimer = setInterval(() => {
-      // Estimated progress only: hold at 95% until the server actually responds.
-      if (progress < 95) {
-        progress = Math.min(95, progress + (progress < 25 ? 3 : progress < 70 ? 1 : 0.35));
-        paintProgress();
-      }
-    }, 500);
+    progressLabel.textContent = 'Preparing image…';
+    progressState.textContent = 'In progress';
+    progressNote.textContent = 'AI is processing the image. Exact percentage is not provided by the AI service.';
     try {
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -99,6 +87,7 @@ $('deduct').onclick=async()=>{if(!batch||!$('reviewed').checked)return;$('deduct
         reader.onerror = () => reject(new Error('Could not read the selected image.'));
         reader.readAsDataURL(file);
       });
+      progressLabel.textContent = 'AI is reading the room sheet…';
       const response = await fetch('/api/housekeeping/ai-read-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,18 +104,22 @@ $('deduct').onclick=async()=>{if(!batch||!$('reviewed').checked)return;$('deduct
         'CONFIDENCE: ' + Math.round((Number(row.confidence) || 0) * 100) + '%',
         row.reason ? 'NOTE: ' + row.reason : ''
       ].filter(Boolean).join(' | ')).join('\\n');
-      progress = 100;
-      paintProgress();
       progressLabel.textContent = 'Reading complete';
+      progressState.textContent = 'Completed';
       progressNote.textContent = 'AI response received successfully.';
+      document.getElementById('aiProgressBar').style.animation = 'none';
+      document.getElementById('aiProgressBar').style.transform = 'translateX(0)';
+      document.getElementById('aiProgressBar').style.width = '100%';
       status.textContent = 'AI read ' + rows.length + ' row(s) using ' + (data.model || 'AI') + '. Check the result against the original photo.';
       if (!rows.length) status.textContent += ' No readable rows were returned. Try a clearer or upright photo.';
     } catch (error) {
       status.textContent = 'AI reading failed: ' + (error && error.message ? error.message : 'Unknown error');
       progressLabel.textContent = 'Reading failed';
+      progressState.textContent = 'Failed';
       progressNote.textContent = 'Please check the error above and try again.';
+      document.getElementById('aiProgressBar').style.animation = 'none';
+      document.getElementById('aiProgressBar').style.width = '0%';
     } finally {
-      clearInterval(progressTimer);
       button.disabled = false;
       button.textContent = 'Read room sheet with AI';
     }
