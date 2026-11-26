@@ -42,7 +42,7 @@ $('read').onclick=async()=>{
       (i+1)+'. '+r.roomNumber,
       'ROOMS: '+(r.expectedRoomCount==null?'not clear':r.expectedRoomCount),
       'STATUS: '+r.status,
-      r.arrivalTime?'ETA: '+r.arrivalTime:'',
+      r.status==='CK IN' && r.arrivalTime?'ETA: '+r.arrivalTime:'',
       'CONFIDENCE: '+Math.round((r.confidence||0)*100)+'%',
       r.reason?'NOTE: '+r.reason:''
     ].filter(Boolean).join(' | ')).join('\n');
