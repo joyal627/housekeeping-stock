@@ -56,4 +56,53 @@ const totals={dental_kit:0,soap:0,shaving_kit:0,shower_cap:0,shampoo:0,moisturis
 batch={batchId:'checkout-'+crypto.randomUUID(),rooms:unique.map(roomNumber=>({roomNumber,status:'CK OUT'})),totals};const names={dental_kit:'Dental kit',soap:'Soap',shaving_kit:'Shaving kit',shower_cap:'Shower cap',shampoo:'Shampoo',moisturiser:'Moisturiser'};$('preview').innerHTML='<b>Confirmed CK OUT rooms ('+unique.length+')</b><p>'+unique.join(', ')+'</p><table class="table"><tbody>'+Object.entries(totals).filter(x=>x[1]>0).map(([k,v])=>'<tr><td>'+names[k]+'</td><td>'+v+'</td></tr>').join('')+'</tbody></table>';$('deduct').disabled=!$('reviewed').checked};
 $('reviewed').onchange=()=>{$('deduct').disabled=!batch||!$('reviewed').checked};
 $('deduct').onclick=async()=>{if(!batch||!$('reviewed').checked)return;$('deduct').disabled=true;$('result').textContent='Saving deduction…';try{const r=await fetch('/api/housekeeping/deduct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...batch,staffName:$('staff').value})});const data=await r.json();if(!r.ok)throw new Error(data.error||'Deduction failed');$('result').innerHTML='<span class="ok">Stock deducted successfully for '+data.rooms.length+' rooms.</span>';batch=null;$('rooms').value='';$('reviewed').checked=false;$('preview').textContent='Completed. Ready for next room list.'}catch(e){$('result').innerHTML='<span class="danger">'+e.message+'</span>';$('deduct').disabled=false}};
+</script>
+<script>
+/* Standalone AI reader click handler: remains available even if another page script fails. */
+(function () {
+  const button = document.getElementById('read');
+  const status = document.getElementById('ocrStatus');
+  const photo = document.getElementById('photo');
+  if (!button || !status || !photo) return;
+  button.onclick = async function () {
+    const file = photo.files && photo.files[0];
+    if (!file) { status.textContent = 'Choose a room-sheet photo first.'; return; }
+    if (!/^image\\/(jpeg|png|webp)$/i.test(file.type)) { status.textContent = 'Please choose a JPG, PNG or WEBP image.'; return; }
+    if (file.size > 7 * 1024 * 1024) { status.textContent = 'Image is over 7 MB. Please choose a smaller image.'; return; }
+    button.disabled = true;
+    button.textContent = 'Reading…';
+    status.textContent = 'Reading image with AI… Please wait.';
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+        reader.onerror = () => reject(new Error('Could not read the selected image.'));
+        reader.readAsDataURL(file);
+      });
+      const response = await fetch('/api/housekeeping/ai-read-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, mimeType: file.type })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || ('Server error (' + response.status + ')'));
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      document.getElementById('ocrText').value = rows.map((row, index) => [
+        (index + 1) + '. ' + (row.roomNumber || 'Room not clear'),
+        'ROOMS: ' + (row.expectedRoomCount == null ? 'not clear' : row.expectedRoomCount),
+        'STATUS: ' + (row.status || 'NOT CLEAR'),
+        row.arrivalTime ? 'ETA: ' + row.arrivalTime : '',
+        'CONFIDENCE: ' + Math.round((Number(row.confidence) || 0) * 100) + '%',
+        row.reason ? 'NOTE: ' + row.reason : ''
+      ].filter(Boolean).join(' | ')).join('\\n');
+      status.textContent = 'AI read ' + rows.length + ' row(s) using ' + (data.model || 'AI') + '. Check the result against the original photo.';
+      if (!rows.length) status.textContent += ' No readable rows were returned. Try a clearer or upright photo.';
+    } catch (error) {
+      status.textContent = 'AI reading failed: ' + (error && error.message ? error.message : 'Unknown error');
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Read room sheet with AI';
+    }
+  };
+})();
 </script></body></html>
