@@ -343,7 +343,10 @@
     loadData();
 
     if (location.protocol.startsWith('http')) {
-      setInterval(loadFromServer, 2500);
+      // Refresh shared stock less often, and only while this tab is visible.
+      setInterval(() => {
+        if (!document.hidden) loadFromServer();
+      }, 15000);
     }
   }
 
@@ -785,9 +788,13 @@
     }
   }
 
+  let isLoadingFromServer = false;
+
   async function loadFromServer() {
+    if (isLoadingFromServer) return;
+    isLoadingFromServer = true;
     try {
-      const res = await fetch('/api/data?t=' + Date.now(), { cache: 'no-store' });
+      const res = await fetch('/api/data', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         state.items = data.items || defaultItems;
@@ -800,15 +807,18 @@
         checkAndSendStockNotifications();
         return;
       }
-    } catch (e) {}
-
-    const local = localStorage.getItem('hk_stock_items');
-    state.items = local ? JSON.parse(local) : defaultItems;
-    if (isFirstRender) {
-      renderFull();
-      isFirstRender = false;
-    } else {
-      updateExistingDOM();
+      throw new Error('Could not load stock data.');
+    } catch (e) {
+      const local = localStorage.getItem('hk_stock_items');
+      state.items = local ? JSON.parse(local) : defaultItems;
+      if (isFirstRender) {
+        renderFull();
+        isFirstRender = false;
+      } else {
+        updateExistingDOM();
+      }
+    } finally {
+      isLoadingFromServer = false;
     }
   }
 
