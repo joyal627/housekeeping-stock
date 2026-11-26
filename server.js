@@ -344,12 +344,12 @@ function loadRoomSupplyRules() {
 // Normalize handwritten ETA shorthand such as "10. AM", "10.PM" and "09.30 am".
 function normalizeRoomingSheetTime(value) {
   if (typeof value !== 'string') return '';
-  let time = value.trim().replace(/\\s+/g, ' ').toUpperCase();
-  time = time.replace(/\\b(\\d{1,2})\\s*\\.\\s*(AM|PM)\\b/, '$1:00 $2');
-  time = time.replace(/\\b(\\d{1,2})\\.(\\d{2})\\s*(AM|PM)\\b/, '$1:$2 $3');
-  time = time.replace(/\\b(\\d{1,2})\\s+(AM|PM)\\b/, '$1:00 $2');
-  time = time.replace(/\\b(\\d{1,2}):(\\d{2})(AM|PM)\\b/, '$1:$2 $3');
-  const match = /\\b(\\d{1,2}):(\\d{2})\\s*(AM|PM)\\b/.exec(time);
+  let time = value.trim().replace(/\s+/g, ' ').toUpperCase();
+  time = time.replace(/\b(\d{1,2})\s*\.\s*(AM|PM)\b/, '$1:00 $2');
+  time = time.replace(/\b(\d{1,2})\.(\d{2})\s*(AM|PM)\b/, '$1:$2 $3');
+  time = time.replace(/\b(\d{1,2})\s+(AM|PM)\b/, '$1:00 $2');
+  time = time.replace(/\b(\d{1,2}):(\d{2})(AM|PM)\b/, '$1:$2 $3');
+  const match = /\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/.exec(time);
   if (!match) return '';
   const hour = Number(match[1]), minute = Number(match[2]);
   if (hour < 1 || hour > 12 || minute > 59) return '';
