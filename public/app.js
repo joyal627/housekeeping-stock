@@ -1376,6 +1376,7 @@
       });
       const imageBase64 = String(dataUrl).split(',')[1] || '';
       if (!imageBase64) throw new Error('Image data is empty. Please upload again.');
+      selectedRoomSheetDate = '';
       const response = await fetch('/api/housekeeping/ai-read-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1383,7 +1384,7 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Gemini could not read the image.');
-      selectedRoomSheetDate = data.selectedTableDate || data.sheetDate || '';
+      selectedRoomSheetDate = data.sheetDate || ''; // ISO YYYY-MM-DD required by deduction API
       if (data.blocked) {
         ocrRows = [];
         roomReview.innerHTML = '';
