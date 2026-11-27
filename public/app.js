@@ -1256,6 +1256,58 @@
     );
   }
 
+  // Resize room-sheet photos before upload to reduce phone RAM use and stay below Vercel's request limit.
+  async function prepareRoomSheetImage(file) {
+    let bitmap;
+    try {
+      if ('createImageBitmap' in window) {
+        bitmap = await createImageBitmap(file, { resizeWidth: 2200, resizeHeight: 2200, resizeQuality: 'high' });
+      } else {
+        bitmap = await new Promise((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+          img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not open this image.')); };
+          img.src = url;
+        });
+      }
+      const width = bitmap.width || bitmap.naturalWidth;
+      const height = bitmap.height || bitmap.naturalHeight;
+      const scale = Math.min(1, 2200 / Math.max(width, height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      const ctx = canvas.getContext('2d', { alpha: false });
+      if (!ctx) throw new Error('Image processing is not available on this device.');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (bitmap.close) bitmap.close();
+      bitmap = null;
+      const makeBlob = quality => new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+      let blob = await makeBlob(0.82);
+      if (!blob) throw new Error('Could not prepare the image. Please try again.');
+      if (blob.size > 3 * 1024 * 1024) blob = await makeBlob(0.72);
+      if (!blob || blob.size > 3 * 1024 * 1024) {
+        const smaller = document.createElement('canvas');
+        const factor = 1800 / Math.max(canvas.width, canvas.height);
+        smaller.width = Math.max(1, Math.round(canvas.width * factor));
+        smaller.height = Math.max(1, Math.round(canvas.height * factor));
+        const smallCtx = smaller.getContext('2d', { alpha: false });
+        smallCtx.fillStyle = '#fff';
+        smallCtx.fillRect(0, 0, smaller.width, smaller.height);
+        smallCtx.drawImage(canvas, 0, 0, smaller.width, smaller.height);
+        blob = await new Promise(resolve => smaller.toBlob(resolve, 'image/jpeg', 0.68));
+        smaller.width = 1; smaller.height = 1;
+      }
+      canvas.width = 1; canvas.height = 1;
+      if (!blob || blob.size > 3 * 1024 * 1024) throw new Error('Image is still too large. Please take the photo from a little farther away.');
+      return blob;
+    } finally {
+      if (bitmap && bitmap.close) bitmap.close();
+    }
+  }
+
   function handleRoomImageChange(input) {
     const file = input.files && input.files[0];
     if (!file) return;
@@ -1361,26 +1413,29 @@
       roomOcrStatus.textContent = tr('validImage');
       return;
     }
-    if (file.size > 7 * 1024 * 1024) {
-      roomOcrStatus.textContent = tr('largeImage');
+    if (file.size > 15 * 1024 * 1024) {
+      roomOcrStatus.textContent = currentLanguage === 'hi' ? 'तस्वीर बहुत बड़ी है। कृपया 15 MB से छोटी तस्वीर चुनें।' : 'Image is too large. Please choose an image under 15 MB.';
       return;
     }
     roomOcrBtn.disabled = true;
     roomOcrStatus.textContent = tr('reading');
     try {
+      roomOcrStatus.textContent = currentLanguage === 'hi' ? 'तस्वीर का आकार कम किया जा रहा है…' : 'Preparing and compressing image…';
+      const uploadBlob = await prepareRoomSheetImage(file);
       const dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Could not read the selected image. Please choose it again.'));
-        reader.readAsDataURL(file);
+        reader.onerror = () => reject(new Error('Could not read the prepared image. Please try again.'));
+        reader.readAsDataURL(uploadBlob);
       });
       const imageBase64 = String(dataUrl).split(',')[1] || '';
       if (!imageBase64) throw new Error('Image data is empty. Please upload again.');
       selectedRoomSheetDate = '';
+      roomOcrStatus.textContent = tr('reading');
       const response = await fetch('/api/housekeeping/ai-read-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, mimeType: file.type })
+        body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg' })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Gemini could not read the image.');
