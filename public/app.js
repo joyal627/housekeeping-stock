@@ -1165,6 +1165,8 @@
   const confirmRoomBtn = document.getElementById('confirmRoomDeductionBtn');
   let ocrRows = [];
   let roomAiNote = '';
+  // Keep the exact sheet date selected by the AI reader; the server requires it for today's-only deduction.
+  let selectedRoomSheetDate = '';
   const roomGalleryInput = document.getElementById('roomSheetGalleryImage');
   const roomCameraBtn = document.getElementById('roomOcrCameraBtn');
   const roomUploadBtn = document.getElementById('roomOcrUploadBtn');
@@ -1364,6 +1366,14 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Gemini could not read the image.');
+      selectedRoomSheetDate = data.selectedTableDate || data.sheetDate || '';
+      if (data.blocked) {
+        ocrRows = [];
+        roomReview.innerHTML = '';
+        roomOcrStatus.textContent = data.message || 'Only today’s rooming sheet can be processed.';
+        updateConfirmState();
+        return;
+      }
       const allowed = ['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR'];
       ocrRows = (data.rows || []).map(row => {
         const roomNumbers = expandRoomGroup(String(row.roomNumber || ''));
@@ -1440,8 +1450,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           batchId,
-          rooms: roomsToDeduct,
-          
+          sheetDate: selectedRoomSheetDate,
+          rooms: roomsToDeduct
         })
       });
       const data = await res.json();
