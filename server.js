@@ -973,7 +973,6 @@ const server = http.createServer(async (req, res) => {
             const etaIsCheckout = /^(C\s*OUT|CK\s*OUT|CHECK\s*OUT|CHECK-OUT|CHECKOUT)$/i.test(etaText);
             const etaIsStay = /^STAY$/i.test(etaText);
             const etaIsDay = /^DAY$/i.test(etaText);
-            const etaIsDinner = /^DINNER$/i.test(etaText);
             const isDayBooking = /^DAY$/i.test(ckOutText) || /^DAY$/i.test(planText) || expectedRoomCount === 0.01 || expectedRoomCount === 0.02;
             const normalizedArrivalTime = normalizeRoomingSheetTime(typeof row.arrivalTime === 'string' ? row.arrivalTime : etaText);
             let status = String(row.status || '').toUpperCase().trim();
@@ -981,7 +980,6 @@ const server = http.createServer(async (req, res) => {
             else if (normalizedArrivalTime) status = 'CK IN';
             else if (etaIsDay) status = 'DAY';
             else if (etaIsStay || /^STAY$/i.test(status)) status = 'STAY';
-            else if (etaIsDinner && status === 'CK IN') status = 'NOT CLEAR';
             else if (/^(CK IN|CHECK IN|CHECK-IN)$/.test(status)) status = 'CK IN';
             if (!allowedStatuses.has(status)) status = 'NOT CLEAR';
             const reasonParts = [typeof row.reason === 'string' ? row.reason.slice(0, 140) : ''];
