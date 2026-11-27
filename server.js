@@ -1297,4 +1297,8 @@ if (!process.env.VERCEL) {
   });
 }
 
-module.exports = server;
+// Vercel Node Functions require an exported request handler, not a raw http.Server instance.
+// Forward each invocation to the existing server request listener.
+module.exports = function handler(req, res) {
+  server.emit('request', req, res);
+};
