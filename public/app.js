@@ -1308,10 +1308,13 @@
     }
   }
 
+  let roomPreviewObjectUrl = '';
   function handleRoomImageChange(input) {
     const file = input.files && input.files[0];
     if (!file) return;
-    roomPreview.src = URL.createObjectURL(file);
+    if (roomPreviewObjectUrl) URL.revokeObjectURL(roomPreviewObjectUrl);
+    roomPreviewObjectUrl = URL.createObjectURL(file);
+    roomPreview.src = roomPreviewObjectUrl;
     roomPreview.style.display = 'block';
     roomReview.innerHTML = '';
     confirmRoomBtn.disabled = true;
