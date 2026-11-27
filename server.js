@@ -527,7 +527,8 @@ function normalizeRoomingSheetRooms(value, expectedRoomCount, rules) {
     expandedForValidation.every(room => room === 'D1' || room === 'D2');
   const dayUseCountMatches = dayUseOnly && expandedForValidation.length === 1 &&
     ((expected === 0.01 && expandedForValidation[0] === 'D1') ||
-     (expected === 0.02 && expandedForValidation[0] === 'D2'));
+     (expected === 0.02 && expandedForValidation[0] === 'D2') ||
+     (expected === 1));
   const countMatches = !hasExpected || dayUseCountMatches || Math.abs(count - expected) < 0.001;
   return {
     // Expand ranges into individual room IDs because the deduction API accepts exact IDs.
@@ -934,13 +935,14 @@ const server = http.createServer(async (req, res) => {
             'RANGES AND SEPARATORS: repeated hyphens such as 131---136 mean range 131-136. A single hyphen between two full room numbers such as 123-125 is a range only when the row/count supports that interpretation. Slash and parentheses are group separators: 101/123-125/(131-136) means groups 101, 123-125 and 131-136. Do not merge separate groups or invent intermediate rooms.',
             'STRICT COLUMN MAPPING: Read each row by its printed column boundaries and headers. The Room Num column contains the actual room identifiers; copy those identifiers into roomNumber. The ROOMS column contains only the number/count of rooms for that booking; copy that value into expectedRoomCount. NEVER use the ROOMS count as a room number, and NEVER use Adult, Kid, Plan, ETA or guest count as the room count. Do not shift values from a neighboring column when a cell is blank.',
             'ROOMS COUNT VALIDATION: After reading Room Num, count the actual rooms represented and compare that count with ROOMS. Slash (/) separates room entries; a numeric range such as 131-133 means 131,132,133; letter-number IDs such as A1 are one exact room. CRITICAL EXAMPLE: ROOMS=5 and Room Num=101/131-133/A1 MUST produce expectedRoomCount=5 and roomNumber="101,131,132,133,A1". Never omit A1 and never treat the slash as decoration. Another example: ROOMS=2 and Room Num=106-107 means roomNumber="106,107". ROOMS=3 and Room Num=121-122-126 means exactly roomNumber="121,122,126" (not a continuous range). If the count conflicts, do not invent or silently add rooms: keep the clearest visible Room Num tokens, lower confidence and explain the mismatch. The ROOMS count is not Adult, Kid or meal count.',
-            'DAY-USE EXCEPTION: Day-use D1/D2 may show 0.01/0.02 in ROOMS; preserve D1/D2 as room tokens and do not treat these decimal values as normal room counts.',
+            'DAY-USE EXCEPTION: Day-use D1/D2 may show 0.01/0.02 or 1 in ROOMS; preserve D1/D2 as room tokens and do not treat these values as normal room counts. If ETA says DAY, return status DAY. The day-use D1/D2 supply rule is 2 Soap, 1 Shampoo and 1 Moisturiser.',
+            'STAY ROWS: Never omit a row because ETA says STAY. Return every STAY row with its roomNumber, status STAY, and all visible fields. ETA text DINNER is not a time and must be ignored for status; do not turn DINNER into CK IN or CK OUT.',
             'STRICT ETA OVERRIDE: ANY row with a real time in ETA (for example 10:00 AM, 9:30 AM, 12:30 PM) is ALWAYS CK IN, including D1/D2 and even when Plan or CK OUT says DAY. Only classify CK OUT when CK OUT/C Out is explicitly written in the CK OUT column; an ETA time takes precedence over DAY. Return arrivalTime with the ETA time.',
             'DATE TABLES: The image may contain multiple separate tables, each with a date heading. Return EVERY table separately as tables:[{sheetDate:"YYYY-MM-DD",displayDate:"26-Nov",rows:[...]}]. The current year is ' + new Date().getFullYear() + '. Infer that year when only DD-MMM is visible. Do not mix rows between date tables. If no table heading date is visible, set sheetDate and displayDate to empty strings.',
-            'STATUS FROM ETA/COLUMN VALUES: Read ETA, CK OUT and Plan independently. Only explicit CK OUT/C Out/Check Out text in the CK OUT column means CK OUT; never infer CK OUT from ETA. ANY specific time in ETA (10:00 AM, 9:30 AM, 12:30 PM, etc.) ALWAYS means CK IN, even if Plan or CK OUT says DAY, including D1/D2. A time in ETA takes precedence over DAY. Return that time as arrivalTime. If ETA says STAY and contains no time, return STAY. Normalize 10. AM to 10:00 AM, 10.PM to 10:00 PM, and 09.30 am to 09:30 AM. Do not classify a time as a room number. If no reliable status/time is visible, use NOT CLEAR.',
+            'STATUS FROM ETA/COLUMN VALUES: Read ETA, CK OUT and Plan independently. Only explicit CK OUT/C Out/Check Out text in the CK OUT column means CK OUT; never infer CK OUT from ETA. A real clock time in ETA (10:00 AM, 9:30 AM, 12:30 PM, etc.) means CK IN, including D1/D2. ETA exactly DAY means status DAY (not CK IN). ETA exactly STAY means STAY. ETA exactly DINNER is a meal note, not a time or status: ignore it and determine status only from the other status columns; never classify DINNER as CK IN. Return a real ETA time as arrivalTime. Normalize 10. AM to 10:00 AM, 10.PM to 10:00 PM, and 09.30 am to 09:30 AM. Do not classify a time as a room number. If no reliable status/time is visible, use NOT CLEAR.'
             'For each row also return eta, plan and ckOut as the exact visible cell text (empty string if blank), so server-side rules can resolve DAY and checkout precedence deterministically.',
             'Return ONLY valid JSON in this exact shape: {"tables":[{"sheetDate":"2026-11-26","displayDate":"26-Nov","rows":[{"roomNumber":"101-119","expectedRoomCount":16,"eta":"C Out","plan":"","ckOut":"C Out","status":"CK OUT","arrivalTime":"","confidence":0.95,"reason":""}]}]}. If only one table, still return it inside tables. For compatibility you may also return rows for a single undated table.',
-            'Allowed status values: CK OUT, STAY, STAY BACK, CK IN, NOT CLEAR. Keep roomNumber as comma-separated exact tokens and/or valid ranges; do not flatten a valid continuous range. expectedRoomCount must be a number when readable, otherwise null.',
+            'Allowed status values: CK OUT, STAY, STAY BACK, CK IN, DAY, NOT CLEAR. Keep roomNumber as comma-separated exact tokens and/or valid ranges; do not flatten a valid continuous range. expectedRoomCount must be a number when readable, otherwise null.',
             'Recognize room identifiers such as 101-136, A1, A2, D1, D2, Treehouse and Clubvilla. Do not infer missing data. Use NOT CLEAR and low confidence when uncertain. Do not invent room numbers or duplicate rows.',
             'Ignore headings, totals, notes, and rows without a room number. No stock calculations or deductions.'
           ].join(' ');
@@ -953,7 +955,7 @@ const server = http.createServer(async (req, res) => {
           } catch (_) {
             throw new Error('AI response was not valid JSON. Please upload a clearer image.');
           }
-          const allowedStatuses = new Set(['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'NOT CLEAR']);
+          const allowedStatuses = new Set(['CK OUT', 'STAY', 'STAY BACK', 'CK IN', 'DAY', 'NOT CLEAR']);
           const roomRules = loadRoomSupplyRules();
           const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
           const todayDisplayDate = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' }).format(new Date()).replace(' ', '-');
@@ -970,12 +972,16 @@ const server = http.createServer(async (req, res) => {
             const ckOutText = typeof row.ckOut === 'string' ? row.ckOut.trim() : '';
             const etaIsCheckout = /^(C\s*OUT|CK\s*OUT|CHECK\s*OUT|CHECK-OUT|CHECKOUT)$/i.test(etaText);
             const etaIsStay = /^STAY$/i.test(etaText);
+            const etaIsDay = /^DAY$/i.test(etaText);
+            const etaIsDinner = /^DINNER$/i.test(etaText);
             const isDayBooking = /^DAY$/i.test(ckOutText) || /^DAY$/i.test(planText) || expectedRoomCount === 0.01 || expectedRoomCount === 0.02;
             const normalizedArrivalTime = normalizeRoomingSheetTime(typeof row.arrivalTime === 'string' ? row.arrivalTime : etaText);
             let status = String(row.status || '').toUpperCase().trim();
             if (etaIsCheckout) status = 'CK OUT';
             else if (normalizedArrivalTime) status = 'CK IN';
+            else if (etaIsDay) status = 'DAY';
             else if (etaIsStay || /^STAY$/i.test(status)) status = 'STAY';
+            else if (etaIsDinner && status === 'CK IN') status = 'NOT CLEAR';
             else if (/^(CK IN|CHECK IN|CHECK-IN)$/.test(status)) status = 'CK IN';
             if (!allowedStatuses.has(status)) status = 'NOT CLEAR';
             const reasonParts = [typeof row.reason === 'string' ? row.reason.slice(0, 140) : ''];
