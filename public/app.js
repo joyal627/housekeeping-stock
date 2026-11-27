@@ -228,6 +228,23 @@
       location.reload();
     });
   }
+  // Show the current rooming-sheet date using India local time.
+  function updateRoomSheetTodayDate() {
+    const dateEl = document.getElementById('roomSheetTodayDate');
+    const promptEl = document.getElementById('roomSheetTodayPrompt');
+    if (!dateEl || !promptEl) return;
+    const now = new Date();
+    dateEl.textContent = new Intl.DateTimeFormat(currentLanguage === 'hi' ? 'hi-IN' : 'en-IN', {
+      timeZone: 'Asia/Kolkata', day: '2-digit', month: 'long', year: 'numeric'
+    }).format(now);
+    promptEl.textContent = currentLanguage === 'hi'
+      ? 'कृपया आज की रूमिंग शीट सूची जोड़ें।'
+      : "Please add today's rooming sheet list.";
+  }
+  updateRoomSheetTodayDate();
+  document.addEventListener('visibilitychange', updateRoomSheetTodayDate);
+  setInterval(updateRoomSheetTodayDate, 60000);
+
   translateDom();
   new MutationObserver(records => {
     if (currentLanguage !== 'hi') return;
